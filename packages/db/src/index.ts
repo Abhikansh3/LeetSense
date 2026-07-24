@@ -1,0 +1,20 @@
+import { PrismaClient } from "@prisma/client";
+
+// Reuse a single PrismaClient across hot reloads in development to avoid
+// exhausting the database connection pool.
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+};
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
+// Re-export Prisma types + enums so apps import everything from @leetsense/db.
+export * from "@prisma/client";

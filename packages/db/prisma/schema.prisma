@@ -1,0 +1,129 @@
+// LeetSense database schema
+// docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// A registered LeetSense user.
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String?
+  leetcodeUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  submissions   Submission[]
+  snapshots     ProfileSnapshot[]
+  syncJobs      SyncJob[]
+  chatMessages  ChatMessage[]
+}
+
+/// Rotating refresh tokens for JWT auth.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// A LeetCode problem (shared across users).
+model Problem {
+  id         String     @id @default(cuid())
+  titleSlug  String     @unique
+  questionId String?
+  title      String
+  difficulty Difficulty
+  tags       String[]
+  acRate     Float?
+  createdAt  DateTime   @default(now())
+
+  submissions Submission[]
+}
+
+/// A user's accepted submission to a problem.
+model Submission {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId     String
+  problem       Problem  @relation(fields: [problemId], references: [id])
+  lang          String
+  statusDisplay String
+  timestamp     DateTime
+  runtime       String?
+  memory        String?
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, problemId, timestamp])
+  @@index([userId])
+  @@index([problemId])
+}
+
+/// A point-in-time snapshot of a user's LeetCode stats (for growth charts).
+model ProfileSnapshot {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalSolved  Int
+  easySolved   Int
+  mediumSolved Int
+  hardSolved   Int
+  ranking      Int?
+  reputation   Int?
+  capturedAt   DateTime @default(now())
+
+  @@index([userId, capturedAt])
+}
+
+/// Tracks a background sync of a user's LeetCode data.
+model SyncJob {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status     SyncStatus @default(PENDING)
+  stage      String?
+  progress   Int        @default(0)
+  error      String?
+  startedAt  DateTime   @default(now())
+  finishedAt DateTime?
+
+  @@index([userId])
+}
+
+/// Persisted chat history for the RAG assistant.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
