@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # The backend can expose /metrics (e.g. via prom-client) for these to work.
+  - job_name: leetsense-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:3000"]

@@ -1,0 +1,37 @@
+# ---- Build stage ----
+FROM node:22-slim AS build
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@10.18.3
+WORKDIR /app
+
+# Copy workspace manifests first for better layer caching.
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/db/package.json ./packages/db/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY apps/backend/package.json ./apps/backend/
+RUN pnpm install --frozen-lockfile
+
+# Copy sources and build.
+COPY packages ./packages
+COPY apps/backend ./apps/backend
+RUN pnpm --filter @leetsense/db db:generate
+RUN pnpm --filter @leetsense/backend build
+
+# ---- Runtime stage ----
+FROM node:22-slim AS runtime
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@10.18.3
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+EXPOSE 3000
+# The command is overridden per-service (API vs worker) in docker-compose.
+CMD ["node", "apps/backend/dist/index.js"]
