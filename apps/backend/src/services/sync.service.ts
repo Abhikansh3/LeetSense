@@ -9,6 +9,7 @@ import {
   type RawSubmission,
 } from "../fetchers/leetcode.js";
 import { env } from "../config/env.js";
+import { indexUserData } from "./rag/index.js";
 
 /** The 9 stages surfaced to the frontend progress indicator. */
 export const SYNC_STAGES = [
@@ -155,9 +156,9 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
       });
     }
 
-    // 7. RAG indexing hook (implemented in Phase 4)
+    // 7. RAG indexing — embed the freshly synced data (skipped if no Gemini key)
     await emit(userId, jobId, "indexing");
-    // await indexUserData(userId)  // wired up once the RAG pipeline exists
+    await indexUserData(userId);
 
     // 8. Done
     await emit(userId, jobId, "done", { totalSolved: profile.totalSolved });
