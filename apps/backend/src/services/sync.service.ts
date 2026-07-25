@@ -8,7 +8,9 @@ import {
   fetchSessionUsername,
   fetchQuestionMeta,
   type RawSubmission,
+  type LeetCodeCredentials,
 } from "../fetchers/leetcode.js";
+import { decryptSecret } from "../lib/crypto.js";
 import { indexUserData } from "./rag/index.js";
 
 /**
@@ -17,6 +19,13 @@ import { indexUserData } from "./rag/index.js";
  * not a guarantee — the full history needs that user's own session cookie.
  */
 const PUBLIC_SUBMISSION_LIMIT = 100;
+
+/** Both halves must decrypt for the pair to be usable. */
+function decryptCredentials(sessionEnc: string | null, csrfEnc: string | null): LeetCodeCredentials | null {
+  const session = decryptSecret(sessionEnc);
+  const csrf = decryptSecret(csrfEnc);
+  return session && csrf ? { session, csrf } : null;
+}
 
 /** The 9 stages surfaced to the frontend progress indicator. */
 export const SYNC_STAGES = [
@@ -107,18 +116,24 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
     // being synced IS the cookie owner. For anyone else we must use the public
     // per-user endpoint, or every user would be given one person's data.
     await emit(userId, jobId, "submissions");
-    const sessionUser = await fetchSessionUsername();
+    // This user's own cookies, if they've linked a session. Decrypted only
+    // here, held in memory for the duration of the sync, and never logged.
+    const creds = decryptCredentials(user.leetcodeSessionEnc, user.leetcodeCsrfEnc);
+
+    const sessionUser = await fetchSessionUsername(creds);
     const canUseFullHistory = sessionUser !== null && sessionUser.toLowerCase() === username.toLowerCase();
 
-    if (sessionUser !== null && !canUseFullHistory) {
+    if (creds && sessionUser === null) {
+      logger.warn({ userId, username }, "Stored LeetCode session is expired or invalid; falling back to public history");
+    } else if (sessionUser !== null && !canUseFullHistory) {
       logger.info(
         { userId, username, sessionUser },
-        "LEETCODE_SESSION belongs to a different account; using public submission history",
+        "LeetCode session belongs to a different account; using public submission history",
       );
     }
 
     const raw: RawSubmission[] = canUseFullHistory
-      ? await fetchAllSubmissions()
+      ? await fetchAllSubmissions(creds)
       : await fetchRecentAcSubmissions(username, PUBLIC_SUBMISSION_LIMIT);
 
     // De-dup by slug for problem resolution

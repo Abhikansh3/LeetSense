@@ -8,6 +8,9 @@ export interface User {
   email: string;
   name: string | null;
   leetcodeUsername: string | null;
+  /** Whether a LeetCode session is on file. The credential itself is never
+   *  returned by the API, so only its presence is known here. */
+  hasLeetcodeSession?: boolean;
 }
 
 interface AuthState {

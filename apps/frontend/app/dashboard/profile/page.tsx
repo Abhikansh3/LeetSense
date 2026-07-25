@@ -5,6 +5,7 @@ import { useAppData } from "@/lib/app-data";
 import { Card, DifficultyBar, GrowthChart } from "@/components/charts";
 import { PageBody, PageHeader, DetailRow, BarRow, EmptyState, ErrorPanel, Skeleton, RelativeTime } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
+import { LeetCodeSessionCard } from "@/components/LeetCodeSessionCard";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -55,6 +56,8 @@ export default function ProfilePage() {
             />
           </div>
         </Card>
+
+        <LeetCodeSessionCard onChange={refresh} />
 
         {/* SyncButton renders its own card, so it is not wrapped again here. */}
         <SyncButton onDone={refresh} />

@@ -53,17 +53,41 @@ export interface QuestionMeta {
   tags: string[];
 }
 
-/** Low-level GraphQL call. Adds LeetCode auth cookies when configured. */
-async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+/**
+ * A user's own LeetCode cookies. Passed per call rather than read from the
+ * environment so each user's sync runs under their own credentials — a single
+ * global cookie can only ever fetch one person's history.
+ */
+export interface LeetCodeCredentials {
+  session: string;
+  csrf: string;
+}
+
+/** Falls back to the env cookie, which only exists for single-user setups. */
+function resolveCredentials(creds?: LeetCodeCredentials | null): LeetCodeCredentials | null {
+  if (creds?.session && creds.csrf) return creds;
+  if (env.LEETCODE_SESSION && env.LEETCODE_CSRF) {
+    return { session: env.LEETCODE_SESSION, csrf: env.LEETCODE_CSRF };
+  }
+  return null;
+}
+
+/** Low-level GraphQL call. Attaches the caller's LeetCode cookies when given. */
+async function gql<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  creds?: LeetCodeCredentials | null,
+): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Referer: "https://leetcode.com",
     "User-Agent": "LeetSense/1.0",
   };
 
-  if (env.LEETCODE_SESSION && env.LEETCODE_CSRF) {
-    headers.Cookie = `LEETCODE_SESSION=${env.LEETCODE_SESSION}; csrftoken=${env.LEETCODE_CSRF}`;
-    headers["x-csrftoken"] = env.LEETCODE_CSRF;
+  const auth = resolveCredentials(creds);
+  if (auth) {
+    headers.Cookie = `LEETCODE_SESSION=${auth.session}; csrftoken=${auth.csrf}`;
+    headers["x-csrftoken"] = auth.csrf;
   }
 
   const res = await fetch(LEETCODE_GRAPHQL, {
@@ -163,12 +187,13 @@ export async function fetchProfile(username: string): Promise<LeetCodeProfile> {
 }
 
 /**
- * Which LeetCode account the configured LEETCODE_SESSION cookie belongs to,
- * or null when no (or an invalid) cookie is configured. The authenticated
- * submission history is scoped to this account and no other.
+ * Which LeetCode account a set of cookies belongs to, or null when they are
+ * absent, expired or rejected. The authenticated submission history is scoped
+ * to this account and no other, so callers must check it before trusting a
+ * cookie to fetch a given username's data.
  */
-export async function fetchSessionUsername(): Promise<string | null> {
-  if (!env.LEETCODE_SESSION || !env.LEETCODE_CSRF) return null;
+export async function fetchSessionUsername(creds?: LeetCodeCredentials | null): Promise<string | null> {
+  if (!resolveCredentials(creds)) return null;
   const query = /* GraphQL */ `
     query globalData {
       userStatus {
@@ -179,11 +204,12 @@ export async function fetchSessionUsername(): Promise<string | null> {
   `;
   type Resp = { userStatus: { isSignedIn: boolean; username: string | null } | null };
   try {
-    const data = await gql<Resp>(query, {});
+    const data = await gql<Resp>(query, {}, creds);
     if (!data.userStatus?.isSignedIn) return null;
     return data.userStatus.username;
   } catch (err) {
-    logger.warn({ err }, "Could not resolve LEETCODE_SESSION owner; treating as signed out");
+    // Never log the cookie itself — only that resolution failed.
+    logger.warn({ err }, "Could not resolve LeetCode session owner; treating as signed out");
     return null;
   }
 }
@@ -220,7 +246,7 @@ export async function fetchRecentAcSubmissions(
  * whoever owns the configured cookie. Only call it for that account (see
  * `fetchSessionUsername`), never as a generic per-user fetch.
  */
-export async function fetchAllSubmissions(): Promise<RawSubmission[]> {
+export async function fetchAllSubmissions(creds?: LeetCodeCredentials | null): Promise<RawSubmission[]> {
   const query = /* GraphQL */ `
     query submissions($offset: Int!, $limit: Int!) {
       submissionList(offset: $offset, limit: $limit) {
@@ -249,11 +275,11 @@ export async function fetchAllSubmissions(): Promise<RawSubmission[]> {
   const limit = 20;
   // Safety cap so a huge history can't loop forever.
   for (let page = 0; page < 100; page++) {
-    const data = await gql<Resp>(query, { offset, limit });
+    const data = await gql<Resp>(query, { offset, limit }, creds);
     const list = data.submissionList;
     // LeetCode returns a null list rather than an error for an expired cookie.
     if (!list) {
-      throw new Error("LeetCode returned no submission list — LEETCODE_SESSION is expired or invalid");
+      throw new Error("LeetCode returned no submission list — the session cookie is expired or invalid");
     }
     for (const s of list.submissions) {
       if (s.statusDisplay !== "Accepted") continue;

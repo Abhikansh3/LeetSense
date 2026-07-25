@@ -51,3 +51,21 @@ export async function me(req: Request, res: Response) {
   const user = await authService.getMe(req.user!.sub);
   res.json({ user });
 }
+
+const leetcodeSessionSchema = z.object({
+  session: z.string().min(10, "LEETCODE_SESSION looks too short"),
+  csrf: z.string().min(10, "csrftoken looks too short"),
+});
+
+/** PUT /api/auth/leetcode-session — store the caller's own LeetCode cookies. */
+export async function setLeetcodeSession(req: Request, res: Response) {
+  const { session, csrf } = leetcodeSessionSchema.parse(req.body ?? {});
+  const result = await authService.setLeetcodeSession(req.user!.sub, session, csrf);
+  res.json(result);
+}
+
+/** DELETE /api/auth/leetcode-session — forget them. */
+export async function clearLeetcodeSession(req: Request, res: Response) {
+  await authService.clearLeetcodeSession(req.user!.sub);
+  res.status(204).end();
+}

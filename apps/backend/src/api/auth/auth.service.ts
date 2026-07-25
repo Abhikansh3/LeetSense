@@ -6,6 +6,8 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from "../../lib/jwt.js";
+import { encryptSecret } from "../../lib/crypto.js";
+import { fetchSessionUsername } from "../../fetchers/leetcode.js";
 
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -85,7 +87,47 @@ export async function logout(token: string) {
 export async function getMe(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw BadRequest("User not found");
-  return publicUser(user);
+  // Only whether a session is on file — never the credential itself.
+  return { ...publicUser(user), hasLeetcodeSession: Boolean(user.leetcodeSessionEnc && user.leetcodeCsrfEnc) };
+}
+
+/**
+ * Stores a user's own LeetCode cookies so their sync can read their full
+ * submission history. Verifies the cookies against LeetCode first and rejects
+ * them unless they belong to the handle the account is linked to — otherwise a
+ * user could paste someone else's cookie and ingest their history.
+ */
+export async function setLeetcodeSession(userId: string, session: string, csrf: string) {
+  const owner = await fetchSessionUsername({ session, csrf });
+  if (!owner) {
+    throw BadRequest("Those LeetCode cookies were rejected — they may be expired. Copy them again while signed in.");
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { leetcodeUsername: true } });
+  if (user?.leetcodeUsername && user.leetcodeUsername.toLowerCase() !== owner.toLowerCase()) {
+    throw BadRequest(
+      `Those cookies belong to @${owner}, but this account is linked to @${user.leetcodeUsername}. Sync @${owner} first, or use your own cookies.`,
+    );
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      leetcodeSessionEnc: encryptSecret(session),
+      leetcodeCsrfEnc: encryptSecret(csrf),
+      // Adopt the verified handle so the two can never drift apart.
+      leetcodeUsername: owner,
+    },
+  });
+
+  return { username: owner };
+}
+
+export async function clearLeetcodeSession(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { leetcodeSessionEnc: null, leetcodeCsrfEnc: null },
+  });
 }
 
 function publicUser(user: {

@@ -14,6 +14,9 @@ const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
+  // 32 bytes of hex — encrypts users' stored LeetCode session cookies.
+  // Generate with: openssl rand -hex 32
+  ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL: z.string().default("7d"),
 
