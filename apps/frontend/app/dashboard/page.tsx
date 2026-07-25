@@ -1,55 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import Link from "next/link";
+import { useAppData } from "@/lib/app-data";
 import { SyncButton } from "@/components/SyncButton";
 import { TopBar } from "@/components/TopBar";
 import { Card, StatCard, DifficultyDonut, Heatmap, TopicRadar, GrowthChart } from "@/components/charts";
-
-interface Overview {
-  snapshot: { totalSolved: number; ranking: number | null } | null;
-  totalSubmissions: number;
-  byDifficulty: { EASY: number; MEDIUM: number; HARD: number };
-  topTopics: { tag: string; count: number }[];
-}
+import { PageBody, Chip, EmptyState, ErrorPanel, Skeleton } from "@/components/ui";
 
 export default function DashboardPage() {
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
-  const [radar, setRadar] = useState<{ tag: string; value: number }[]>([]);
-  const [snapshots, setSnapshots] = useState<{ capturedAt: string; totalSolved: number }[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [o, h, r, s] = await Promise.all([
-        api<Overview>("/stats/overview"),
-        api<{ days: { date: string; count: number }[] }>("/stats/heatmap"),
-        api<{ topics: { tag: string; value: number }[] }>("/stats/radar"),
-        api<{ snapshots: { capturedAt: string; totalSolved: number }[] }>("/stats/snapshots"),
-      ]);
-      setOverview(o);
-      setHeatmap(h.days);
-      setRadar(r.topics);
-      setSnapshots(s.snapshots);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { overview, heatmap, radar, snapshots, loading, error, refresh } = useAppData();
 
   const activeDays = heatmap.length;
+  const hasData = (overview?.totalSubmissions ?? 0) > 0;
 
   return (
     <div>
       <TopBar title="Overview" subtitle="Your LeetCode analytics at a glance." />
 
-      <div className="animate-fadeup mx-auto max-w-6xl space-y-5 px-8 py-6">
-        <SyncButton onDone={load} />
+      <PageBody>
+        <SyncButton onDone={refresh} />
+
+        {error && <ErrorPanel message={error} onRetry={() => void refresh()} />}
 
         {loading ? (
           <SkeletonGrid />
@@ -65,11 +36,29 @@ export default function DashboardPage() {
               <StatCard label="Active days" value={activeDays} hint="in the last year" />
             </div>
 
+            {!hasData && !error && (
+              <div className="card">
+                <EmptyState
+                  title="Nothing synced yet"
+                  body="Enter your LeetCode username above and run a sync to populate your analytics."
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Card title="Difficulty breakdown">
                 <DifficultyDonut data={overview?.byDifficulty ?? { EASY: 0, MEDIUM: 0, HARD: 0 }} />
               </Card>
-              <Card title="Top topics">
+              <Card
+                title="Top topics"
+                right={
+                  hasData ? (
+                    <Link href="/dashboard/problems" className="text-xs text-[var(--color-accent)] hover:underline">
+                      Browse problems
+                    </Link>
+                  ) : null
+                }
+              >
                 <div className="flex flex-wrap gap-2">
                   {overview?.topTopics.length ? (
                     overview.topTopics.map((t) => (
@@ -85,7 +74,14 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <Card title="Activity" right={<span className="text-xs text-[var(--color-faint)]">last 12 months</span>}>
+            <Card
+              title="Activity"
+              right={
+                <Link href="/dashboard/activity" className="text-xs text-[var(--color-accent)] hover:underline">
+                  View all
+                </Link>
+              }
+            >
               <Heatmap days={heatmap} />
             </Card>
 
@@ -97,9 +93,24 @@ export default function DashboardPage() {
                 <GrowthChart snapshots={snapshots} />
               </Card>
             </div>
+
+            {overview?.languages?.length ? (
+              <Card title="Languages" right={<span className="text-xs text-[var(--color-faint)]">by submissions</span>}>
+                <div className="flex flex-wrap gap-2">
+                  {[...overview.languages]
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 8)
+                    .map((l) => (
+                      <Chip key={l.lang}>
+                        {l.lang} · {l.count}
+                      </Chip>
+                    ))}
+                </div>
+              </Card>
+            ) : null}
           </>
         )}
-      </div>
+      </PageBody>
     </div>
   );
 }
@@ -109,14 +120,14 @@ function SkeletonGrid() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="card h-[92px] animate-pulse" />
+          <Skeleton key={i} className="h-[92px]" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="card h-40 animate-pulse" />
-        <div className="card h-40 animate-pulse" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
       </div>
-      <div className="card h-32 animate-pulse" />
+      <Skeleton className="h-32" />
     </div>
   );
 }
