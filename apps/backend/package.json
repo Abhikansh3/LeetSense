@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "reindex": "tsx src/scripts/reindex.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

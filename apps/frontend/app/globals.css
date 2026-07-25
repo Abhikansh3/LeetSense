@@ -160,8 +160,29 @@ body {
     transform: translate(-10%, -8%) scale(0.9);
   }
 }
+@keyframes blobDrift3 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  50% {
+    transform: translate(-6%, 10%) scale(1.1);
+  }
+}
+
 .animate-fadeup {
   animation: fadeUp 0.5s ease both;
+}
+
+/* The auth hero is decorative — drop it on narrow screens so the form gets
+   the full width rather than being squeezed beside it. */
+@media (max-width: 900px) {
+  .auth-hero {
+    display: none;
+  }
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
 }
 
 @layer components {
