@@ -5,11 +5,18 @@ import {
   fetchProfile,
   fetchRecentAcSubmissions,
   fetchAllSubmissions,
+  fetchSessionUsername,
   fetchQuestionMeta,
   type RawSubmission,
 } from "../fetchers/leetcode.js";
-import { env } from "../config/env.js";
 import { indexUserData } from "./rag/index.js";
+
+/**
+ * How many recent accepted submissions to request on the public path.
+ * LeetCode caps this server-side (commonly ~20), so this is an upper bound,
+ * not a guarantee — the full history needs that user's own session cookie.
+ */
+const PUBLIC_SUBMISSION_LIMIT = 100;
 
 /** The 9 stages surfaced to the frontend progress indicator. */
 export const SYNC_STAGES = [
@@ -85,12 +92,24 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
       },
     });
 
-    // 3. Submissions — full history if authenticated, else recent public list
+    // 3. Submissions — the authenticated endpoint returns the *cookie owner's*
+    // history regardless of `username`, so it is only correct when the account
+    // being synced IS the cookie owner. For anyone else we must use the public
+    // per-user endpoint, or every user would be given one person's data.
     await emit(userId, jobId, "submissions");
-    const hasSession = Boolean(env.LEETCODE_SESSION && env.LEETCODE_CSRF);
-    const raw: RawSubmission[] = hasSession
+    const sessionUser = await fetchSessionUsername();
+    const canUseFullHistory = sessionUser !== null && sessionUser.toLowerCase() === username.toLowerCase();
+
+    if (sessionUser !== null && !canUseFullHistory) {
+      logger.info(
+        { userId, username, sessionUser },
+        "LEETCODE_SESSION belongs to a different account; using public submission history",
+      );
+    }
+
+    const raw: RawSubmission[] = canUseFullHistory
       ? await fetchAllSubmissions()
-      : await fetchRecentAcSubmissions(username, 20);
+      : await fetchRecentAcSubmissions(username, PUBLIC_SUBMISSION_LIMIT);
 
     // De-dup by slug for problem resolution
     const uniqueSlugs = [...new Set(raw.map((s) => s.titleSlug))];

@@ -57,6 +57,8 @@ services:
       CHROMA_URL: http://chromadb:8000
       BACKEND_PORT: 3000
       CORS_ORIGIN: http://localhost:3001
+      # The `worker` service below owns job processing here.
+      WORKER_IN_PROCESS: "false"
     # Uses DATABASE_URL from the container env (not a .env file). db push keeps
     # the schema in sync without checked-in migrations.
     command: sh -c "node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && node apps/backend/dist/index.js"

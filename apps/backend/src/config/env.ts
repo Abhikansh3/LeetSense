@@ -19,6 +19,14 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
+  // Run the BullMQ sync worker inside the API process. Defaults to on in
+  // development (so `pnpm dev` alone can complete a sync) and off elsewhere,
+  // where the worker runs as its own process.
+  WORKER_IN_PROCESS: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
+
   GEMINI_API_KEY: z.string().default(""),
   GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_EMBED_MODEL: z.string().default("gemini-embedding-001"),

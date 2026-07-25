@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, getAccessToken, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { SyncIcon } from "@/components/icons";
@@ -19,6 +19,13 @@ export function SyncButton({ onDone }: { onDone?: () => void }) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // `user` is null on first render while the session is still being restored,
+  // so the initial state above misses a saved username. Fill it in once auth
+  // resolves, but never clobber what the user is currently typing.
+  useEffect(() => {
+    if (user?.leetcodeUsername) setUsername((current) => current || user.leetcodeUsername!);
+  }, [user?.leetcodeUsername]);
+
   async function startSync() {
     setError(null);
     setSyncing(true);
@@ -27,15 +34,21 @@ export function SyncButton({ onDone }: { onDone?: () => void }) {
     const token = getAccessToken();
     const es = new EventSource(`${API_URL}/api/sync/stream?token=${encodeURIComponent(token ?? "")}`);
 
+    // EventSource also fires `onerror` on a normal close, so track whether the
+    // stream already reached a terminal state before reporting a failure.
+    let settled = false;
+
     es.onmessage = (ev) => {
       const data = JSON.parse(ev.data) as Progress;
       setProgress(data);
       if (data.error) {
+        settled = true;
         setError(data.error);
         es.close();
         setSyncing(false);
       }
       if (data.stage === "done") {
+        settled = true;
         es.close();
         setSyncing(false);
         refreshUser();
@@ -45,6 +58,11 @@ export function SyncButton({ onDone }: { onDone?: () => void }) {
     es.onerror = () => {
       es.close();
       setSyncing(false);
+      // A drop before "done" means progress silently stopped — say so rather
+      // than letting it look like the sync finished successfully.
+      if (!settled) {
+        setError("Lost connection to the sync stream before it finished. Check the worker is running.");
+      }
     };
 
     try {

@@ -102,6 +102,32 @@ export async function fetchProfile(username: string): Promise<LeetCodeProfile> {
   };
 }
 
+/**
+ * Which LeetCode account the configured LEETCODE_SESSION cookie belongs to,
+ * or null when no (or an invalid) cookie is configured. The authenticated
+ * submission history is scoped to this account and no other.
+ */
+export async function fetchSessionUsername(): Promise<string | null> {
+  if (!env.LEETCODE_SESSION || !env.LEETCODE_CSRF) return null;
+  const query = /* GraphQL */ `
+    query globalData {
+      userStatus {
+        isSignedIn
+        username
+      }
+    }
+  `;
+  type Resp = { userStatus: { isSignedIn: boolean; username: string | null } | null };
+  try {
+    const data = await gql<Resp>(query, {});
+    if (!data.userStatus?.isSignedIn) return null;
+    return data.userStatus.username;
+  } catch (err) {
+    logger.warn({ err }, "Could not resolve LEETCODE_SESSION owner; treating as signed out");
+    return null;
+  }
+}
+
 /** Public: last N accepted submissions (no auth needed, capped ~20). */
 export async function fetchRecentAcSubmissions(
   username: string,
@@ -127,7 +153,13 @@ export async function fetchRecentAcSubmissions(
   }));
 }
 
-/** Authenticated: full paginated submission history (needs LEETCODE_SESSION). */
+/**
+ * Authenticated: full paginated submission history (needs LEETCODE_SESSION).
+ *
+ * NOTE: this endpoint takes no username — it always returns the history of
+ * whoever owns the configured cookie. Only call it for that account (see
+ * `fetchSessionUsername`), never as a generic per-user fetch.
+ */
 export async function fetchAllSubmissions(): Promise<RawSubmission[]> {
   const query = /* GraphQL */ `
     query submissions($offset: Int!, $limit: Int!) {
@@ -159,6 +191,10 @@ export async function fetchAllSubmissions(): Promise<RawSubmission[]> {
   for (let page = 0; page < 100; page++) {
     const data = await gql<Resp>(query, { offset, limit });
     const list = data.submissionList;
+    // LeetCode returns a null list rather than an error for an expired cookie.
+    if (!list) {
+      throw new Error("LeetCode returned no submission list — LEETCODE_SESSION is expired or invalid");
+    }
     for (const s of list.submissions) {
       if (s.statusDisplay !== "Accepted") continue;
       all.push({
