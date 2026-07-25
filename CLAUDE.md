@@ -85,8 +85,14 @@ Ordered roughly by value:
    what happens when retrieval returns nothing. It currently degrades to an
    ungrounded answer; `queryChunks` swallows vector-store failures by design so
    a damaged index cannot 500 the endpoint. Rebuild with the `reindex` script.
-5. **Dashboard redesign is unresolved.** Two directions were built and rejected
-   (a restrained Linear/Vercel-style token system, then a "terminal instrument"
-   look). Both are preserved on `wip/dashboard-redesign-parked` and are purely
-   additive — no live page imports them. Do not restart this without a concrete
-   visual reference from the user.
+5. **Dashboard redesign is unresolved and was abandoned.** Two directions were
+   built and rejected — a restrained Linear/Vercel-style token system ("too
+   simple"), then a "terminal instrument" look with framed panels, grid
+   backdrops, zero-padded figures and segmented meters ("worse"). Both were
+   deleted; the current UI is the one to work from.
+
+   The second direction was picked by the user from ASCII mockups, which
+   flatter box-drawing aesthetics in a way rendered pixels do not. Two full
+   builds were spent guessing from written adjectives. **Do not start a third
+   attempt without a concrete visual reference** — a screenshot, or a named
+   product whose dashboard to match. Ask for one before writing styling code.
