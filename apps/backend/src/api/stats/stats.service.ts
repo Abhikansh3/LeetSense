@@ -9,19 +9,32 @@ export async function getOverview(userId: string) {
 
   const submissions = await prisma.submission.findMany({
     where: { userId },
-    include: { problem: { select: { difficulty: true, tags: true } } },
+    include: { problem: { select: { id: true, difficulty: true, tags: true } } },
   });
 
   const byDifficulty = { EASY: 0, MEDIUM: 0, HARD: 0 };
   const topicCount = new Map<string, number>();
   const languages = new Map<string, number>();
 
+  // A user can have many submissions for one problem, so difficulty and topic
+  // counts must be taken over *distinct solved problems* — otherwise they
+  // inflate past the `totalSolved` figure shown right beside them.
+  const countedProblems = new Set<string>();
+
   for (const s of submissions) {
+    // The public endpoint doesn't report a language, so those rows are stored
+    // as "unknown" — counting them would render a meaningless "unknown" bar
+    // rather than an honest "no language data" state.
+    if (s.lang !== "unknown") languages.set(s.lang, (languages.get(s.lang) ?? 0) + 1);
+
+    if (s.statusDisplay !== "Accepted") continue;
+    if (countedProblems.has(s.problem.id)) continue;
+    countedProblems.add(s.problem.id);
+
     byDifficulty[s.problem.difficulty] += 1;
     for (const tag of s.problem.tags) {
       topicCount.set(tag, (topicCount.get(tag) ?? 0) + 1);
     }
-    languages.set(s.lang, (languages.get(s.lang) ?? 0) + 1);
   }
 
   const topTopics = [...topicCount.entries()]
@@ -44,7 +57,7 @@ export async function getHeatmap(userId: string) {
   since.setFullYear(since.getFullYear() - 1);
 
   const submissions = await prisma.submission.findMany({
-    where: { userId, timestamp: { gte: since } },
+    where: { userId, timestamp: { gte: since }, statusDisplay: "Accepted" },
     select: { timestamp: true },
   });
 
@@ -65,16 +78,54 @@ export async function getSnapshots(userId: string) {
   });
 }
 
+/**
+ * Reverse-chronological solve feed for the Activity page, cursor-paginated on
+ * submission id (timestamps are not unique enough to page on safely).
+ */
+export async function getActivity(userId: string, cursor: string | undefined, limit: number) {
+  const rows = await prisma.submission.findMany({
+    where: { userId, statusDisplay: "Accepted" },
+    include: { problem: { select: { titleSlug: true, title: true, difficulty: true, tags: true } } },
+    orderBy: [{ timestamp: "desc" }, { id: "desc" }],
+    take: limit + 1, // one extra to detect a next page
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  });
+
+  const hasNext = rows.length > limit;
+  const page = hasNext ? rows.slice(0, limit) : rows;
+
+  return {
+    items: page.map((s) => ({
+      id: s.id,
+      titleSlug: s.problem.titleSlug,
+      title: s.problem.title,
+      difficulty: s.problem.difficulty,
+      tags: s.problem.tags,
+      lang: s.lang,
+      runtime: s.runtime,
+      memory: s.memory,
+      timestamp: s.timestamp,
+    })),
+    nextCursor: hasNext ? page[page.length - 1]!.id : null,
+  };
+}
+
 /** Weakness radar: solved count grouped by topic (with difficulty weighting). */
 export async function getTopicRadar(userId: string) {
   const submissions = await prisma.submission.findMany({
     where: { userId },
-    include: { problem: { select: { tags: true, difficulty: true } } },
+    include: { problem: { select: { id: true, tags: true, difficulty: true } } },
   });
 
   const weight = { [Difficulty.EASY]: 1, [Difficulty.MEDIUM]: 2, [Difficulty.HARD]: 3 };
   const score = new Map<string, number>();
+  const scored = new Set<string>();
   for (const s of submissions) {
+    // Score each solved problem once; repeat submissions are not extra strength.
+    if (s.statusDisplay !== "Accepted") continue;
+    if (scored.has(s.problem.id)) continue;
+    scored.add(s.problem.id);
+
     for (const tag of s.problem.tags) {
       score.set(tag, (score.get(tag) ?? 0) + weight[s.problem.difficulty]);
     }

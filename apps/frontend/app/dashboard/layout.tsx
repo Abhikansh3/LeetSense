@@ -5,11 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { AppDataProvider } from "@/lib/app-data";
+import { hasSkippedOnboarding } from "@/lib/onboarding";
 import {
   LogoMark,
   OverviewIcon,
+  ActivityIcon,
   ProblemsIcon,
   ChatIcon,
+  ProfileIcon,
   LogoutIcon,
   MoonIcon,
   SunIcon,
@@ -18,8 +22,10 @@ import { BackgroundBlobs } from "@/components/BackgroundBlobs";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", Icon: OverviewIcon, badge: null },
+  { href: "/dashboard/activity", label: "Activity", Icon: ActivityIcon, badge: null },
   { href: "/dashboard/problems", label: "Problems", Icon: ProblemsIcon, badge: null },
   { href: "/dashboard/chat", label: "AI Mentor", Icon: ChatIcon, badge: "AI" },
+  { href: "/dashboard/profile", label: "Profile", Icon: ProfileIcon, badge: null },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +35,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (loading) return;
+    if (!user) router.replace("/login");
+    // A user with no linked handle has nothing to show — send them to
+    // onboarding instead of a dashboard full of zeroes, unless they chose
+    // to skip it for this session.
+    else if (!user.leetcodeUsername && !hasSkippedOnboarding()) router.replace("/onboarding");
   }, [loading, user, router]);
 
   if (loading || !user) {
@@ -114,7 +125,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1">
+        <AppDataProvider>{children}</AppDataProvider>
+      </main>
     </div>
   );
 }

@@ -24,9 +24,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setError(null);
     setLoading(true);
     try {
-      if (isRegister) await register(email, password, name || undefined);
-      else await login(email, password);
-      router.push("/dashboard");
+      if (isRegister) {
+        await register(email, password, name || undefined);
+        // New accounts have no LeetCode handle yet, so send them through the
+        // onboarding flow rather than an empty dashboard.
+        router.push("/onboarding");
+      } else {
+        await login(email, password);
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {

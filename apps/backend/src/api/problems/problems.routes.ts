@@ -21,8 +21,13 @@ router.get("/", requireAuth, async (req, res) => {
   const where: Prisma.ProblemWhereInput = {};
   if (difficulty) where.difficulty = difficulty as Difficulty;
   if (tag) where.tags = { has: tag };
-  if (solved === "true") where.submissions = { some: { userId } };
+
+  // `Problem` is a global table shared by every user, so it must always be
+  // scoped to the caller — otherwise everyone sees the union of all problems
+  // ever synced by anyone. Default to "problems I have submissions for";
+  // `solved=false` is the one case that deliberately looks outside that set.
   if (solved === "false") where.submissions = { none: { userId } };
+  else where.submissions = { some: { userId } };
 
   const items = await prisma.problem.findMany({
     where,

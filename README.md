@@ -45,10 +45,27 @@ pnpm --filter @leetsense/backend worker    # sync worker (BullMQ)
 pnpm --filter @leetsense/frontend dev      # web app  -> http://localhost:3001
 ```
 
-Register at `http://localhost:3001`, then sync a public LeetCode username
-(profile + recent solves work without cookies). For the AI chat and full
-submission history, set `GEMINI_API_KEY` and `LEETCODE_SESSION` / `LEETCODE_CSRF`
-in `.env`.
+Register at `http://localhost:3001` and the onboarding flow will link a LeetCode
+username and run the first sync. Set `GEMINI_API_KEY` in `.env` to enable the AI
+chat.
+
+In development the API runs the BullMQ worker in-process, so `pnpm dev` alone
+can complete a sync — the separate `worker` command is only needed if you set
+`WORKER_IN_PROCESS=false` (as the Docker setup does).
+
+### How much history gets synced
+
+| Account | Source | Coverage |
+| ------- | ------ | -------- |
+| Any public username | `recentAcSubmissionList` | ~20 most recent accepted solves |
+| The `LEETCODE_SESSION` owner | `submissionList` (authenticated) | Full paginated history |
+
+LeetCode's authenticated endpoint takes no username — it always returns the
+cookie owner's submissions. LeetSense therefore only uses it when the account
+being synced *is* the cookie owner, and falls back to the public per-user
+endpoint for everyone else. Aggregate counts (total solved, ranking,
+easy/medium/hard) always come from the public profile, so they are accurate for
+every user regardless of cookies.
 
 ### Everything in Docker
 
@@ -66,5 +83,22 @@ docker compose --profile monitoring up -d   # + prometheus & grafana
 | POST | `/api/sync` | Queue a LeetCode sync |
 | GET  | `/api/sync/stream?token=` | SSE progress (9 stages) |
 | GET  | `/api/stats/overview` \| `/heatmap` \| `/radar` \| `/snapshots` | Dashboard data |
+| GET  | `/api/stats/activity` | Cursor-paginated solve feed |
 | GET  | `/api/problems` | Filterable, cursor-paginated problems |
 | POST | `/api/chat` | RAG-grounded Q&A |
+
+All read endpoints are scoped to the authenticated user. `Problem` is a shared
+table, so anything querying it must filter by the caller's submissions.
+
+## Pages
+
+| Route | Purpose |
+| ----- | ------- |
+| `/` | Landing page |
+| `/register` \| `/login` | Auth |
+| `/onboarding` | First-run: link a handle and stream the initial sync |
+| `/dashboard` | Overview — headline stats, difficulty, topics, heatmap, growth |
+| `/dashboard/activity` | Reverse-chronological solve feed |
+| `/dashboard/problems` | Your synced problems, filterable by difficulty |
+| `/dashboard/chat` | RAG-grounded AI mentor |
+| `/dashboard/profile` | Account, linked handle, languages, growth |

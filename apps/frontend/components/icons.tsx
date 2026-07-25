@@ -56,6 +56,27 @@ export const SparkIcon = (p: IconProps) => (
   </Base>
 );
 
+export const ActivityIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </Base>
+);
+
+export const ProfileIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </Base>
+);
+
+export const FlameIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1.5.5-2.5 1-3.5C9.5 8 10 9 11 9c0-3 1-5 1-7Z" />
+    <path d="M12 22a6 6 0 0 0 6-6c0-2-1-3.5-2-5" />
+    <path d="M12 22a6 6 0 0 1-6-6c0-1 .3-2 .8-3" />
+  </Base>
+);
+
 export const CheckIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M20 6 9 17l-5-5" />
