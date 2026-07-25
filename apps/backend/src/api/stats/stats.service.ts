@@ -22,7 +22,10 @@ export async function getOverview(userId: string) {
   const countedProblems = new Set<string>();
 
   for (const s of submissions) {
-    languages.set(s.lang, (languages.get(s.lang) ?? 0) + 1);
+    // The public endpoint doesn't report a language, so those rows are stored
+    // as "unknown" — counting them would render a meaningless "unknown" bar
+    // rather than an honest "no language data" state.
+    if (s.lang !== "unknown") languages.set(s.lang, (languages.get(s.lang) ?? 0) + 1);
 
     if (s.statusDisplay !== "Accepted") continue;
     if (countedProblems.has(s.problem.id)) continue;
