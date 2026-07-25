@@ -1,24 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { TopBar } from "@/components/TopBar";
 import { CheckIcon, ExternalIcon } from "@/components/icons";
+import { PageBody, DifficultyTag, Chip, EmptyState, ErrorPanel, type DifficultyKey } from "@/components/ui";
 
 interface Problem {
   id: string;
   titleSlug: string;
   title: string;
-  difficulty: "EASY" | "MEDIUM" | "HARD";
+  difficulty: DifficultyKey;
   tags: string[];
   solved: boolean;
 }
-
-const DIFF_COLOR: Record<Problem["difficulty"], string> = {
-  EASY: "var(--color-easy)",
-  MEDIUM: "var(--color-medium)",
-  HARD: "var(--color-hard)",
-};
 
 const FILTERS = [
   { value: "", label: "All" },
@@ -32,51 +28,60 @@ export default function ProblemsPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<string>("");
   const sentinel = useRef<HTMLDivElement>(null);
 
-  const loadMore = useCallback(
-    async (reset = false) => {
-      if (loading) return;
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (difficulty) params.set("difficulty", difficulty);
-        if (!reset && cursor) params.set("cursor", cursor);
-        const res = await api<{ items: Problem[]; nextCursor: string | null }>(`/problems?${params}`);
-        setItems((prev) => (reset ? res.items : [...prev, ...res.items]));
-        setCursor(res.nextCursor);
-        setHasNext(Boolean(res.nextCursor));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [cursor, difficulty, loading],
-  );
+  // Paging state in a ref so the observer callback always reads current values
+  // without the observer being torn down and rebuilt on every fetch.
+  const state = useRef({ cursor, hasNext, loading, difficulty });
+  state.current = { cursor, hasNext, loading, difficulty };
+
+  const loadMore = useCallback(async (reset = false) => {
+    if (state.current.loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (state.current.difficulty) params.set("difficulty", state.current.difficulty);
+      const next = reset ? null : state.current.cursor;
+      if (next) params.set("cursor", next);
+      const res = await api<{ items: Problem[]; nextCursor: string | null }>(`/problems?${params}`);
+      setItems((prev) => (reset ? res.items : [...prev, ...res.items]));
+      setCursor(res.nextCursor);
+      setHasNext(Boolean(res.nextCursor));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load problems");
+      setHasNext(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setItems([]);
     setCursor(null);
     setHasNext(true);
-    loadMore(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty]);
+    void loadMore(true);
+  }, [difficulty, loadMore]);
 
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
     const obs = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && hasNext && !loading) loadMore();
+      if (entries[0]?.isIntersecting && state.current.hasNext && !state.current.loading) {
+        void loadMore();
+      }
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasNext, loading, loadMore]);
+  }, [loadMore]);
 
   return (
     <div>
-      <TopBar title="Problems" subtitle="Browse the problems in your synced dataset." />
+      <TopBar title="Problems" subtitle="The problems in your synced history." />
 
-      <div className="mx-auto max-w-4xl space-y-4 px-8 py-6">
+      <PageBody width="narrow">
         <div className="flex gap-1.5">
           {FILTERS.map((f) => (
             <button
@@ -92,6 +97,8 @@ export default function ProblemsPage() {
             </button>
           ))}
         </div>
+
+        {error && <ErrorPanel message={error} onRetry={() => void loadMore(true)} />}
 
         <div className="card divide-y divide-[var(--color-border)] overflow-hidden">
           {items.map((p) => (
@@ -114,26 +121,39 @@ export default function ProblemsPage() {
               <span className="flex-1 truncate text-sm">{p.title}</span>
               <span className="hidden gap-1 sm:flex">
                 {p.tags.slice(0, 2).map((t) => (
-                  <span key={t} className="rounded-md bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs text-[var(--color-faint)]">
-                    {t}
-                  </span>
+                  <Chip key={t}>{t}</Chip>
                 ))}
               </span>
-              <span className="w-16 text-right text-xs font-medium" style={{ color: DIFF_COLOR[p.difficulty] }}>
-                {p.difficulty[0] + p.difficulty.slice(1).toLowerCase()}
-              </span>
-              <ExternalIcon size={14} className="text-[var(--color-faint)] opacity-0 transition group-hover:opacity-100" />
+              <DifficultyTag difficulty={p.difficulty} />
+              <ExternalIcon size={14} className="shrink-0 text-[var(--color-faint)] opacity-0 transition group-hover:opacity-100" />
             </a>
           ))}
 
-          {items.length === 0 && !loading && (
-            <p className="px-4 py-12 text-center text-sm text-[var(--color-faint)]">
-              No problems yet — sync your LeetCode account from the Overview page.
-            </p>
+          {items.length === 0 && !loading && !error && (
+            <EmptyState
+              title={difficulty ? `No ${difficulty.toLowerCase()} problems yet` : "No problems yet"}
+              body={
+                difficulty
+                  ? "Nothing at this difficulty in your synced history."
+                  : "Sync your LeetCode account and the problems you've solved will appear here."
+              }
+              action={
+                difficulty ? (
+                  <button onClick={() => setDifficulty("")} className="btn btn-secondary">
+                    Show all
+                  </button>
+                ) : (
+                  <Link href="/dashboard" className="btn btn-primary">
+                    Go to Overview
+                  </Link>
+                )
+              }
+            />
           )}
+
           {loading && items.length === 0 && (
             <div className="divide-y divide-[var(--color-border)]">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-11 animate-pulse bg-[var(--color-surface-hover)]/40" />
               ))}
             </div>
@@ -143,7 +163,7 @@ export default function ProblemsPage() {
         <div ref={sentinel} className="h-8 text-center text-sm text-[var(--color-faint)]">
           {loading && items.length > 0 ? "Loading…" : !hasNext && items.length > 0 ? "End of list" : ""}
         </div>
-      </div>
+      </PageBody>
     </div>
   );
 }
