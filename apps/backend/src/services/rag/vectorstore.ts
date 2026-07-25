@@ -1,5 +1,6 @@
 import { ChromaClient, type IEmbeddingFunction } from "chromadb";
 import { env } from "../../config/env.js";
+import { logger } from "../../lib/logger.js";
 import { embedText } from "../../lib/gemini.js";
 
 const COLLECTION_NAME = "leetsense";
@@ -35,15 +36,41 @@ export async function upsertChunks(userId: string, chunks: Chunk[]): Promise<voi
   });
 }
 
-/** Retrieves the most relevant chunks for a query, scoped to one user. */
+/**
+ * Retrieves the most relevant chunks for a query, scoped to one user.
+ *
+ * Retrieval is best-effort: if the vector store is unavailable or its HNSW
+ * index is damaged (a full disk mid-write will do it, surfacing as "Cannot
+ * return the results in a contigious 2D array"), chat should fall back to an
+ * ungrounded answer rather than returning a 500. Rebuild with reindexAll().
+ */
 export async function queryChunks(userId: string, query: string, nResults = 6): Promise<string[]> {
-  const col = await collection();
-  const res = await col.query({
-    queryTexts: [query],
-    nResults,
-    where: { userId },
-  });
-  return (res.documents[0] ?? []).filter((d): d is string => d !== null);
+  try {
+    const col = await collection();
+    const res = await col.query({
+      queryTexts: [query],
+      nResults,
+      where: { userId },
+    });
+    return (res.documents[0] ?? []).filter((d): d is string => d !== null);
+  } catch (err) {
+    logger.error({ err, userId }, "Vector search failed — answering without retrieved context");
+    return [];
+  }
+}
+
+/**
+ * Drops and recreates the collection. The chunks are derived from Postgres, so
+ * this is lossless once every user is re-indexed — the recovery path for a
+ * corrupted index.
+ */
+export async function resetCollection(): Promise<void> {
+  try {
+    await client.deleteCollection({ name: COLLECTION_NAME });
+  } catch {
+    // Nothing to delete on a fresh install.
+  }
+  await client.getOrCreateCollection({ name: COLLECTION_NAME, embeddingFunction });
 }
 
 /** Removes all of a user's chunks (e.g. before a full re-index). */
