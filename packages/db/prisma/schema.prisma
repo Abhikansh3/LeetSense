@@ -98,6 +98,20 @@ model ProfileSnapshot {
   reputation   Int?
   capturedAt   DateTime @default(now())
 
+  // Aggregates from LeetCode's public profile query. These describe the user's
+  // whole history, unlike `Submission` rows which only cover what the public
+  // submission endpoint exposes (~20 recent solves).
+  totalQuestions  Int?
+  acceptanceRate  Float?
+  streak          Int?
+  totalActiveDays Int?
+  /// [{ languageName, problemsSolved }]
+  languageStats   Json?
+  /// { fundamental: [...], intermediate: [...], advanced: [...] }
+  skillStats      Json?
+  /// { accepted, submitted, byDifficulty: [{ difficulty, accepted, submitted }] }
+  submissionStats Json?
+
   @@index([userId, capturedAt])
 }
 

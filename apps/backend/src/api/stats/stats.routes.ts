@@ -16,6 +16,10 @@ router.get("/overview", async (req, res) => {
   res.json(await stats.getOverview(req.user!.sub));
 });
 
+router.get("/profile", async (req, res) => {
+  res.json(await stats.getProfileStats(req.user!.sub));
+});
+
 router.get("/heatmap", async (req, res) => {
   res.json({ days: await stats.getHeatmap(req.user!.sub) });
 });

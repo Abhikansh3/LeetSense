@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAppData } from "@/lib/app-data";
-import { TopBar } from "@/components/TopBar";
 import { Card, Heatmap } from "@/components/charts";
 import {
   PageBody,
+  PageHeader,
   DifficultyTag,
   Chip,
   EmptyState,
@@ -83,10 +83,10 @@ export default function ActivityPage() {
   const totalInYear = heatmap.reduce((sum, d) => sum + d.count, 0);
 
   return (
-    <div>
-      <TopBar title="Activity" subtitle="Every problem you've solved, most recent first." />
+    <PageBody>
+      <PageHeader title="Activity" subtitle="Every problem you've solved, most recent first." />
 
-      <PageBody>
+      <div className="space-y-4">
         <Card
           title="Solve activity"
           right={
@@ -153,7 +153,7 @@ export default function ActivityPage() {
         <div ref={sentinel} className="h-8 text-center text-sm text-[var(--color-faint)]">
           {loading && items.length > 0 ? "Loading…" : !hasNext && items.length > 0 ? "End of history" : ""}
         </div>
-      </PageBody>
-    </div>
+      </div>
+    </PageBody>
   );
 }

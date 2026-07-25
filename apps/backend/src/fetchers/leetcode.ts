@@ -3,6 +3,11 @@ import { logger } from "../lib/logger.js";
 
 const LEETCODE_GRAPHQL = "https://leetcode.com/graphql";
 
+export interface SkillTag {
+  tagName: string;
+  problemsSolved: number;
+}
+
 export interface LeetCodeProfile {
   username: string;
   realName?: string;
@@ -13,6 +18,21 @@ export interface LeetCodeProfile {
   easySolved: number;
   mediumSolved: number;
   hardSolved: number;
+
+  // Whole-history aggregates. These come from the public profile query, so they
+  // are accurate for any username without a session cookie — unlike the
+  // submission list, which is capped at ~20 recent solves.
+  totalQuestions: number;
+  acceptanceRate: number;
+  streak: number;
+  totalActiveDays: number;
+  languageStats: { languageName: string; problemsSolved: number }[];
+  skillStats: { fundamental: SkillTag[]; intermediate: SkillTag[]; advanced: SkillTag[] };
+  submissionStats: {
+    accepted: number;
+    submitted: number;
+    byDifficulty: { difficulty: string; accepted: number; submitted: number }[];
+  };
 }
 
 export interface RawSubmission {
@@ -67,38 +87,78 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
 export async function fetchProfile(username: string): Promise<LeetCodeProfile> {
   const query = /* GraphQL */ `
     query userProfile($username: String!) {
+      allQuestionsCount { difficulty count }
       matchedUser(username: $username) {
         username
         profile { realName ranking reputation userAvatar }
-        submitStatsGlobal { acSubmissionNum { difficulty count } }
+        submitStatsGlobal {
+          acSubmissionNum { difficulty count submissions }
+          totalSubmissionNum { difficulty count submissions }
+        }
+        languageProblemCount { languageName problemsSolved }
+        tagProblemCounts {
+          fundamental { tagName problemsSolved }
+          intermediate { tagName problemsSolved }
+          advanced { tagName problemsSolved }
+        }
+        userCalendar { streak totalActiveDays }
       }
     }
   `;
 
+  type Count = { difficulty: string; count: number; submissions: number };
   type Resp = {
+    allQuestionsCount: { difficulty: string; count: number }[];
     matchedUser: {
       username: string;
       profile: { realName?: string; ranking?: number; reputation?: number; userAvatar?: string };
-      submitStatsGlobal: { acSubmissionNum: { difficulty: string; count: number }[] };
+      submitStatsGlobal: { acSubmissionNum: Count[]; totalSubmissionNum: Count[] };
+      languageProblemCount: { languageName: string; problemsSolved: number }[];
+      tagProblemCounts: { fundamental: SkillTag[]; intermediate: SkillTag[]; advanced: SkillTag[] };
+      userCalendar: { streak: number; totalActiveDays: number } | null;
     } | null;
   };
 
   const data = await gql<Resp>(query, { username });
   if (!data.matchedUser) throw new Error(`LeetCode user "${username}" not found`);
 
-  const stats = data.matchedUser.submitStatsGlobal.acSubmissionNum;
-  const by = (d: string) => stats.find((s) => s.difficulty === d)?.count ?? 0;
+  const m = data.matchedUser;
+  const ac = m.submitStatsGlobal.acSubmissionNum;
+  const total = m.submitStatsGlobal.totalSubmissionNum;
+  const by = (d: string) => ac.find((s) => s.difficulty === d)?.count ?? 0;
+
+  const accepted = ac.find((s) => s.difficulty === "All")?.submissions ?? 0;
+  const submitted = total.find((s) => s.difficulty === "All")?.submissions ?? 0;
 
   return {
-    username: data.matchedUser.username,
-    realName: data.matchedUser.profile.realName,
-    avatar: data.matchedUser.profile.userAvatar,
-    ranking: data.matchedUser.profile.ranking,
-    reputation: data.matchedUser.profile.reputation,
+    username: m.username,
+    realName: m.profile.realName,
+    avatar: m.profile.userAvatar,
+    ranking: m.profile.ranking,
+    reputation: m.profile.reputation,
     totalSolved: by("All"),
     easySolved: by("Easy"),
     mediumSolved: by("Medium"),
     hardSolved: by("Hard"),
+    totalQuestions: data.allQuestionsCount.find((q) => q.difficulty === "All")?.count ?? 0,
+    acceptanceRate: submitted > 0 ? (accepted / submitted) * 100 : 0,
+    streak: m.userCalendar?.streak ?? 0,
+    totalActiveDays: m.userCalendar?.totalActiveDays ?? 0,
+    languageStats: m.languageProblemCount ?? [],
+    skillStats: {
+      fundamental: m.tagProblemCounts?.fundamental ?? [],
+      intermediate: m.tagProblemCounts?.intermediate ?? [],
+      advanced: m.tagProblemCounts?.advanced ?? [],
+    },
+    submissionStats: {
+      accepted,
+      submitted,
+      byDifficulty: ["Easy", "Medium", "Hard"].map((d) => ({
+        difficulty: d,
+        accepted: ac.find((s) => s.difficulty === d)?.submissions ?? 0,
+        submitted: total.find((s) => s.difficulty === d)?.submissions ?? 0,
+      })),
+    },
   };
 }
 

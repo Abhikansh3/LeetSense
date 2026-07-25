@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { TopBar } from "@/components/TopBar";
 import { CheckIcon, ExternalIcon } from "@/components/icons";
-import { PageBody, DifficultyTag, Chip, EmptyState, ErrorPanel, type DifficultyKey } from "@/components/ui";
+import { PageBody, PageHeader, DifficultyTag, Chip, EmptyState, ErrorPanel, type DifficultyKey } from "@/components/ui";
 
 interface Problem {
   id: string;
@@ -78,10 +77,10 @@ export default function ProblemsPage() {
   }, [loadMore]);
 
   return (
-    <div>
-      <TopBar title="Problems" subtitle="The problems in your synced history." />
+    <PageBody>
+      <PageHeader title="Questions" subtitle="The problems in your synced history." />
 
-      <PageBody width="narrow">
+      <div className="space-y-4">
         <div className="flex gap-1.5">
           {FILTERS.map((f) => (
             <button
@@ -163,7 +162,7 @@ export default function ProblemsPage() {
         <div ref={sentinel} className="h-8 text-center text-sm text-[var(--color-faint)]">
           {loading && items.length > 0 ? "Loading…" : !hasNext && items.length > 0 ? "End of list" : ""}
         </div>
-      </PageBody>
-    </div>
+      </div>
+    </PageBody>
   );
 }

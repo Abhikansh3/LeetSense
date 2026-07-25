@@ -1,4 +1,4 @@
-import { prisma, Difficulty, SyncStatus } from "@leetsense/db";
+import { prisma, Difficulty, SyncStatus, type Prisma } from "@leetsense/db";
 import { redis } from "../lib/redis.js";
 import { logger } from "../lib/logger.js";
 import {
@@ -89,6 +89,16 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
         hardSolved: profile.hardSolved,
         ranking: profile.ranking,
         reputation: profile.reputation,
+        totalQuestions: profile.totalQuestions,
+        acceptanceRate: profile.acceptanceRate,
+        streak: profile.streak,
+        totalActiveDays: profile.totalActiveDays,
+        // Plain interfaces lack the index signature Prisma's Json input wants,
+        // so these are cast at the write boundary. Shapes are documented on
+        // the ProfileSnapshot model.
+        languageStats: profile.languageStats as unknown as Prisma.InputJsonValue,
+        skillStats: profile.skillStats as unknown as Prisma.InputJsonValue,
+        submissionStats: profile.submissionStats as unknown as Prisma.InputJsonValue,
       },
     });
 

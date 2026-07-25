@@ -17,6 +17,25 @@ export async function trigger(req: Request, res: Response) {
   const { leetcodeUsername } = triggerSchema.parse(req.body ?? {});
 
   if (leetcodeUsername) {
+    const current = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { leetcodeUsername: true },
+    });
+
+    // Repointing an account at a different handle must clear what the previous
+    // handle produced. Otherwise the two histories accumulate and the dashboard
+    // shows one person's solves merged into another's.
+    const isRelink =
+      current?.leetcodeUsername != null &&
+      current.leetcodeUsername.toLowerCase() !== leetcodeUsername.toLowerCase();
+
+    if (isRelink) {
+      await prisma.$transaction([
+        prisma.submission.deleteMany({ where: { userId } }),
+        prisma.profileSnapshot.deleteMany({ where: { userId } }),
+      ]);
+    }
+
     await prisma.user.update({ where: { id: userId }, data: { leetcodeUsername } });
   }
 
