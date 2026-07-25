@@ -31,11 +31,40 @@ leetsense/
 
 ```bash
 pnpm install
-cp .env.example .env      # then fill in secrets
-pnpm db:generate          # generate the Prisma client
-# start postgres + redis + chroma (see docker-compose)
-pnpm db:migrate           # create the schema
-pnpm dev                  # run everything
+cp .env.example .env                              # then fill in secrets
+docker compose up -d postgres redis chromadb      # infra (pg on host :5433)
+pnpm db:generate                                  # generate the Prisma client
+pnpm db:push                                       # create the schema
 ```
 
-> Built incrementally — see the build phases in project notes.
+Then run the services (separate terminals):
+
+```bash
+pnpm --filter @leetsense/backend dev       # API      -> http://localhost:3000
+pnpm --filter @leetsense/backend worker    # sync worker (BullMQ)
+pnpm --filter @leetsense/frontend dev      # web app  -> http://localhost:3001
+```
+
+Register at `http://localhost:3001`, then sync a public LeetCode username
+(profile + recent solves work without cookies). For the AI chat and full
+submission history, set `GEMINI_API_KEY` and `LEETCODE_SESSION` / `LEETCODE_CSRF`
+in `.env`.
+
+### Everything in Docker
+
+```bash
+docker compose up -d          # infra + api + worker + web
+docker compose --profile monitoring up -d   # + prometheus & grafana
+```
+
+## API overview
+
+| Method | Route | Purpose |
+| ------ | ----- | ------- |
+| POST | `/api/auth/register` \| `/login` \| `/refresh` \| `/logout` | Auth (JWT + rotating refresh) |
+| GET  | `/api/auth/me` | Current user |
+| POST | `/api/sync` | Queue a LeetCode sync |
+| GET  | `/api/sync/stream?token=` | SSE progress (9 stages) |
+| GET  | `/api/stats/overview` \| `/heatmap` \| `/radar` \| `/snapshots` | Dashboard data |
+| GET  | `/api/problems` | Filterable, cursor-paginated problems |
+| POST | `/api/chat` | RAG-grounded Q&A |
