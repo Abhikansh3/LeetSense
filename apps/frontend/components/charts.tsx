@@ -12,10 +12,10 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`card p-5 ${className}`}>
+    <div className={`card p-6 ${className}`}>
       {(title || right) && (
-        <div className="mb-4 flex items-center justify-between">
-          {title && <h3 className="text-[13px] font-medium text-[var(--color-muted)]">{title}</h3>}
+        <div className="mb-[18px] flex items-center justify-between gap-3">
+          {title && <h3 className="text-[15px] font-bold">{title}</h3>}
           {right}
         </div>
       )}

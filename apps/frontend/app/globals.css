@@ -25,8 +25,12 @@
   --color-accent-2: oklch(0.81 0.17 75.35);
 
   --color-easy: oklch(0.72 0.19 149);
+  --color-easy-soft: oklch(0.72 0.19 149 / 0.15);
   --color-medium: oklch(0.81 0.17 75.35);
+  --color-medium-soft: oklch(0.81 0.17 75.35 / 0.15);
   --color-hard: oklch(0.64 0.21 25);
+  --color-hard-soft: oklch(0.64 0.21 25 / 0.15);
+  --color-flame: oklch(0.81 0.17 75.35);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -63,8 +67,12 @@
   --color-accent-2: oklch(0.7 0.15 75.35);
 
   --color-easy: oklch(0.6 0.17 149);
+  --color-easy-soft: oklch(0.72 0.19 149 / 0.13);
   --color-medium: oklch(0.68 0.15 75.35);
+  --color-medium-soft: oklch(0.81 0.17 75.35 / 0.15);
   --color-hard: oklch(0.58 0.21 25);
+  --color-hard-soft: oklch(0.64 0.21 25 / 0.13);
+  --color-flame: oklch(0.7 0.16 75.35);
 
   /* Light mode has a real backdrop to cast onto, so depth inverts to shadow. */
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.04);

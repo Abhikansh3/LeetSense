@@ -2,9 +2,8 @@
 
 import { useAuth } from "@/lib/auth";
 import { useAppData } from "@/lib/app-data";
-import { TopBar } from "@/components/TopBar";
 import { Card, DifficultyBar, GrowthChart } from "@/components/charts";
-import { PageBody, DetailRow, BarRow, EmptyState, ErrorPanel, Skeleton, RelativeTime } from "@/components/ui";
+import { PageBody, PageHeader, DetailRow, BarRow, EmptyState, ErrorPanel, Skeleton, RelativeTime } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
 
 export default function ProfilePage() {
@@ -19,10 +18,10 @@ export default function ProfilePage() {
   const maxLang = languages[0]?.count ?? 0;
 
   return (
-    <div>
-      <TopBar title="Profile" subtitle="Your account, linked LeetCode handle, and progress." />
+    <PageBody>
+      <PageHeader title="Profile" subtitle="Your account, linked LeetCode handle, and progress." />
 
-      <PageBody width="narrow">
+      <div className="mx-auto max-w-3xl space-y-4">
         {error && <ErrorPanel message={error} onRetry={() => void refresh()} />}
 
         <Card title="Account">
@@ -109,7 +108,7 @@ export default function ProfilePage() {
             </Card>
           </>
         )}
-      </PageBody>
-    </div>
+      </div>
+    </PageBody>
   );
 }
