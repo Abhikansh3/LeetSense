@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Logo, ArrowRightIcon, OverviewIcon, ChatIcon, SyncIcon } from "@/components/icons";
+import { LogoMark, ArrowRightIcon, OverviewIcon, ChatIcon, SyncIcon } from "@/components/icons";
+import { BackgroundBlobs } from "@/components/BackgroundBlobs";
 
 const features = [
   { icon: SyncIcon, title: "Real-time sync", body: "Import your LeetCode history with live, staged progress over SSE." },
@@ -10,9 +11,15 @@ const features = [
 export default function Landing() {
   return (
     <div className="min-h-screen">
+      <BackgroundBlobs />
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2">
-          <Logo />
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-lg"
+            style={{ background: "linear-gradient(135deg, var(--color-accent-strong), var(--color-accent))" }}
+          >
+            <LogoMark size={16} />
+          </span>
           <span className="text-[15px] font-semibold tracking-tight">LeetSense</span>
         </div>
         <nav className="flex items-center gap-1">

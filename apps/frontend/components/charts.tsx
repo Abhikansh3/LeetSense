@@ -52,6 +52,63 @@ const DIFF = {
   HARD: { color: "var(--color-hard)", label: "Hard" },
 } as const;
 
+/** Donut of solved-by-difficulty with the total in the center. */
+export function DifficultyDonut({ data }: { data: { EASY: number; MEDIUM: number; HARD: number } }) {
+  const total = data.EASY + data.MEDIUM + data.HARD;
+  const r = 46;
+  const circ = 2 * Math.PI * r;
+  const order = ["EASY", "MEDIUM", "HARD"] as const;
+
+  let offset = 0;
+  const segments = order.map((k) => {
+    const frac = total > 0 ? data[k] / total : 0;
+    const len = frac * circ;
+    const seg = { key: k, len, gap: circ - len, dashoffset: -offset };
+    offset += len;
+    return seg;
+  });
+
+  return (
+    <div className="flex items-center gap-6">
+      <svg width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="14" />
+        {segments.map((s) => (
+          <circle
+            key={s.key}
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            stroke={DIFF[s.key].color}
+            strokeWidth="14"
+            strokeDasharray={`${s.len} ${s.gap}`}
+            strokeDashoffset={s.dashoffset}
+            transform="rotate(-90 60 60)"
+            strokeLinecap={s.len > 0 && s.len < circ ? "round" : "butt"}
+          />
+        ))}
+        <text x="60" y="56" textAnchor="middle" fill="var(--color-text)" className="num" fontWeight="700" fontSize="22">
+          {total}
+        </text>
+        <text x="60" y="74" textAnchor="middle" fill="var(--color-faint)" fontSize="10">
+          solved
+        </text>
+      </svg>
+      <div className="flex-1 space-y-2.5">
+        {order.map((k) => (
+          <div key={k} className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: DIFF[k].color }} />
+              {DIFF[k].label}
+            </span>
+            <span className="num text-sm font-semibold">{data[k]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DifficultyBar({ data }: { data: { EASY: number; MEDIUM: number; HARD: number } }) {
   const total = data.EASY + data.MEDIUM + data.HARD || 1;
   return (

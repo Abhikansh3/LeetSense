@@ -1,37 +1,66 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Design tokens — dark is default; [data-theme="light"] overrides.
+   Palette: pure-black grayscale, blue-violet accent, amber second.
+   ───────────────────────────────────────────────────────────── */
 @theme {
-  /* Neutrals — warm-tinted near-black, hairline borders */
-  --color-bg: #09090b;
-  --color-bg-subtle: #0e0e11;
-  --color-surface: #141417;
-  --color-surface-hover: #1a1a1e;
-  --color-border: #26262b;
-  --color-border-strong: #34343b;
+  --color-bg: oklch(0 0 0);
+  --color-bg-subtle: oklch(0.12 0 0);
+  --color-elevated: oklch(0.18 0 0);
+  --color-surface: oklch(0.14 0 0);
+  --color-surface-hover: oklch(0.2 0 0);
+  --color-surface-2: oklch(0.23 0 0);
+  --color-border: oklch(0.26 0 0);
+  --color-border-strong: oklch(0.34 0 0);
 
-  --color-text: #ededf0;
-  --color-muted: #a1a1aa;
-  --color-faint: #6c6c76;
+  --color-text: oklch(1 0 0);
+  --color-muted: oklch(0.72 0 0);
+  --color-faint: oklch(0.56 0 0);
 
-  /* One confident accent */
-  --color-accent: #7c6cf5;
-  --color-accent-hover: #8b7cf7;
-  --color-accent-soft: #7c6cf51a;
+  --color-accent: oklch(0.58 0.21 260.84);
+  --color-accent-hover: oklch(0.68 0.19 260.84);
+  --color-accent-strong: oklch(0.68 0.19 260.84);
+  --color-accent-soft: oklch(0.58 0.21 260.84 / 0.16);
+  --color-accent-2: oklch(0.81 0.17 75.35);
 
-  /* Semantic difficulty (GitHub-familiar) */
-  --color-easy: #3fb950;
-  --color-medium: #d29922;
-  --color-hard: #f85149;
+  --color-easy: oklch(0.72 0.19 149);
+  --color-medium: oklch(0.81 0.17 75.35);
+  --color-hard: oklch(0.64 0.21 25);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-mono-jb), ui-monospace, "SF Mono", monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
-  --radius: 0.7rem;
+  --radius: 1rem;
+}
+
+:root[data-theme="light"] {
+  --color-bg: oklch(0.99 0 0);
+  --color-bg-subtle: oklch(0.965 0 0);
+  --color-elevated: oklch(1 0 0);
+  --color-surface: oklch(0.975 0 0);
+  --color-surface-hover: oklch(0.95 0 0);
+  --color-surface-2: oklch(0.93 0 0);
+  --color-border: oklch(0.89 0 0);
+  --color-border-strong: oklch(0.82 0 0);
+
+  --color-text: oklch(0.17 0 0);
+  --color-muted: oklch(0.42 0 0);
+  --color-faint: oklch(0.55 0 0);
+
+  --color-accent: oklch(0.52 0.21 260.84);
+  --color-accent-hover: oklch(0.58 0.2 260.84);
+  --color-accent-strong: oklch(0.58 0.2 260.84);
+  --color-accent-soft: oklch(0.58 0.21 260.84 / 0.12);
+  --color-accent-2: oklch(0.7 0.15 75.35);
+
+  --color-easy: oklch(0.6 0.17 149);
+  --color-medium: oklch(0.68 0.15 75.35);
+  --color-hard: oklch(0.58 0.21 25);
 }
 
 html {
   background: var(--color-bg);
-  color-scheme: dark;
 }
 
 body {
@@ -40,25 +69,57 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 ::selection {
   background: var(--color-accent-soft);
-  color: #fff;
 }
 
-/* Slim, unobtrusive scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--color-border) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: var(--color-border);
   border-radius: 999px;
+}
+
+/* Animations ported from the LeetPulse look */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes blobDrift1 {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+  }
+  50% {
+    transform: translate(10%, 8%) scale(1.15);
+  }
+}
+@keyframes blobDrift2 {
+  0%,
+  100% {
+    transform: translate(6%, 10%) scale(1.05);
+  }
+  50% {
+    transform: translate(-10%, -8%) scale(0.9);
+  }
+}
+.animate-fadeup {
+  animation: fadeUp 0.5s ease both;
 }
 
 @layer components {
@@ -72,7 +133,7 @@ body {
     width: 100%;
     border: 1px solid var(--color-border);
     background: var(--color-bg-subtle);
-    border-radius: 0.55rem;
+    border-radius: 0.6rem;
     padding: 0.6rem 0.8rem;
     font-size: 0.875rem;
     color: var(--color-text);
@@ -93,9 +154,9 @@ body {
     justify-content: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     padding: 0.6rem 1rem;
-    border-radius: 0.55rem;
+    border-radius: 0.6rem;
     transition: background 0.15s, border-color 0.15s, opacity 0.15s, color 0.15s;
     cursor: pointer;
     white-space: nowrap;
@@ -105,11 +166,11 @@ body {
     cursor: not-allowed;
   }
   .btn-primary {
-    background: var(--color-accent);
+    background: linear-gradient(135deg, var(--color-accent-strong), var(--color-accent));
     color: #fff;
   }
   .btn-primary:not(:disabled):hover {
-    background: var(--color-accent-hover);
+    filter: brightness(1.08);
   }
   .btn-secondary {
     background: var(--color-surface);

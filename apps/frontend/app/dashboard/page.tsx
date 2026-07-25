@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { SyncButton } from "@/components/SyncButton";
 import { TopBar } from "@/components/TopBar";
-import { Card, StatCard, DifficultyBar, Heatmap, TopicRadar, GrowthChart } from "@/components/charts";
+import { Card, StatCard, DifficultyDonut, Heatmap, TopicRadar, GrowthChart } from "@/components/charts";
 
 interface Overview {
   snapshot: { totalSolved: number; ranking: number | null } | null;
@@ -48,7 +48,7 @@ export default function DashboardPage() {
     <div>
       <TopBar title="Overview" subtitle="Your LeetCode analytics at a glance." />
 
-      <div className="mx-auto max-w-6xl space-y-5 px-8 py-6">
+      <div className="animate-fadeup mx-auto max-w-6xl space-y-5 px-8 py-6">
         <SyncButton onDone={load} />
 
         {loading ? (
@@ -67,7 +67,7 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Card title="Difficulty breakdown">
-                <DifficultyBar data={overview?.byDifficulty ?? { EASY: 0, MEDIUM: 0, HARD: 0 }} />
+                <DifficultyDonut data={overview?.byDifficulty ?? { EASY: 0, MEDIUM: 0, HARD: 0 }} />
               </Card>
               <Card title="Top topics">
                 <div className="flex flex-wrap gap-2">

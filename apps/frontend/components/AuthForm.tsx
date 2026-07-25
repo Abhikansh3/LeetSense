@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
-import { Logo } from "@/components/icons";
+import { LogoMark } from "@/components/icons";
+import { BackgroundBlobs } from "@/components/BackgroundBlobs";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -35,9 +36,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2">
-          <Logo />
+      <BackgroundBlobs />
+      <div className="animate-fadeup w-full max-w-sm">
+        <Link href="/" className="mb-8 flex items-center justify-center gap-2.5">
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-lg"
+            style={{ background: "linear-gradient(135deg, var(--color-accent-strong), var(--color-accent))" }}
+          >
+            <LogoMark size={16} />
+          </span>
           <span className="text-[15px] font-semibold tracking-tight">LeetSense</span>
         </Link>
 
