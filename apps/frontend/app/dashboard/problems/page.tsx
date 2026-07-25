@@ -33,8 +33,11 @@ export default function ProblemsPage() {
 
   // Paging state in a ref so the observer callback always reads current values
   // without the observer being torn down and rebuilt on every fetch.
+  // Written in an effect, not during render — refs are not render-safe.
   const state = useRef({ cursor, hasNext, loading, difficulty });
-  state.current = { cursor, hasNext, loading, difficulty };
+  useEffect(() => {
+    state.current = { cursor, hasNext, loading, difficulty };
+  }, [cursor, hasNext, loading, difficulty]);
 
   const loadMore = useCallback(async (reset = false) => {
     if (state.current.loading) return;

@@ -40,8 +40,11 @@ export default function ActivityPage() {
 
   // Held in a ref so the IntersectionObserver callback always sees current
   // paging state without having to tear down and re-create the observer.
+  // Written in an effect, not during render — refs are not render-safe.
   const state = useRef({ cursor, hasNext, loading });
-  state.current = { cursor, hasNext, loading };
+  useEffect(() => {
+    state.current = { cursor, hasNext, loading };
+  }, [cursor, hasNext, loading]);
 
   const loadMore = useCallback(async (reset = false) => {
     if (state.current.loading) return;
