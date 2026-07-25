@@ -4,86 +4,146 @@ import type { Chunk } from "./vectorstore.js";
 /**
  * Turns a user's LeetCode data into human-readable context chunks. Each chunk
  * is a self-contained paragraph so retrieval returns coherent facts to the LLM.
+ *
+ * IMPORTANT — two sources, only one authoritative:
+ *
+ *   ProfileSnapshot  whole-history aggregates from LeetCode's public profile.
+ *                    This is the truth for "how many have I solved".
+ *   Submission       only what the submission endpoint exposed (~20 recent
+ *                    solves without a session cookie). A *sample*, not a total.
+ *
+ * Chunks previously described submission-derived counts as "solved problems",
+ * which contradicted the snapshot and made the assistant report 20 solved for a
+ * user who had solved 81. Anything countable now comes from the snapshot, and
+ * submission-derived chunks say plainly that they are a recent sample.
  */
+
+interface SkillTag {
+  tagName: string;
+  problemsSolved: number;
+}
+interface SkillStats {
+  fundamental?: SkillTag[];
+  intermediate?: SkillTag[];
+  advanced?: SkillTag[];
+}
+interface LanguageStat {
+  languageName: string;
+  problemsSolved: number;
+}
+
 export async function buildUserChunks(userId: string): Promise<Chunk[]> {
   const chunks: Chunk[] = [];
 
-  // --- Profile / overall stats (latest snapshot) ---
   const snapshot = await prisma.profileSnapshot.findFirst({
     where: { userId },
     orderBy: { capturedAt: "desc" },
   });
+
+  // --- Authoritative totals ---
   if (snapshot) {
+    const parts = [
+      `Overall progress: ${snapshot.totalSolved} problems solved in total` +
+        (snapshot.totalQuestions ? ` out of ${snapshot.totalQuestions} on LeetCode` : "") +
+        `. By difficulty: ${snapshot.easySolved} easy, ${snapshot.mediumSolved} medium, ${snapshot.hardSolved} hard.`,
+    ];
+    if (snapshot.ranking) parts.push(`Global ranking ${snapshot.ranking}.`);
+    if (snapshot.acceptanceRate != null) parts.push(`Acceptance rate ${snapshot.acceptanceRate.toFixed(1)}%.`);
+    if (snapshot.streak != null) parts.push(`Current streak ${snapshot.streak} days.`);
+    if (snapshot.totalActiveDays != null) parts.push(`${snapshot.totalActiveDays} active days.`);
+    parts.push(`These totals are authoritative — use them for any question about how many problems were solved.`);
+
     chunks.push({
       id: `${userId}:profile`,
-      document:
-        `Overall progress: solved ${snapshot.totalSolved} problems total — ` +
-        `${snapshot.easySolved} easy, ${snapshot.mediumSolved} medium, ${snapshot.hardSolved} hard. ` +
-        (snapshot.ranking ? `Global ranking is ${snapshot.ranking}. ` : "") +
-        `Medium and hard problems are the strongest signal of interview readiness.`,
+      document: parts.join(" "),
       metadata: { kind: "profile" },
     });
-  }
 
-  // --- Submissions joined with problem tags/difficulty ---
-  const submissions = await prisma.submission.findMany({
-    where: { userId },
-    include: { problem: true },
-    orderBy: { timestamp: "desc" },
-  });
+    chunks.push({
+      id: `${userId}:difficulty`,
+      document:
+        `Difficulty breakdown of all ${snapshot.totalSolved} solved problems: ` +
+        `${snapshot.easySolved} easy, ${snapshot.mediumSolved} medium, ${snapshot.hardSolved} hard. ` +
+        (snapshot.hardSolved < 5
+          ? `Few hard problems solved — increasing hard practice would build depth.`
+          : `Good coverage of hard problems.`),
+      metadata: { kind: "difficulty" },
+    });
 
-  // Per-topic aggregates
-  const topicCount = new Map<string, number>();
-  const topicDifficulty = new Map<string, { EASY: number; MEDIUM: number; HARD: number }>();
-  for (const s of submissions) {
-    for (const tag of s.problem.tags) {
-      topicCount.set(tag, (topicCount.get(tag) ?? 0) + 1);
-      const d = topicDifficulty.get(tag) ?? { EASY: 0, MEDIUM: 0, HARD: 0 };
-      d[s.problem.difficulty] += 1;
-      topicDifficulty.set(tag, d);
+    // --- Per-topic strength, from LeetCode's own tag counts ---
+    const skills = (snapshot.skillStats ?? null) as unknown as SkillStats | null;
+    for (const [tier, tags] of [
+      ["fundamental", skills?.fundamental ?? []],
+      ["intermediate", skills?.intermediate ?? []],
+      ["advanced", skills?.advanced ?? []],
+    ] as const) {
+      for (const tag of tags) {
+        chunks.push({
+          id: `${userId}:topic:${tag.tagName}`,
+          document:
+            `Topic "${tag.tagName}" (${tier}): ${tag.problemsSolved} problems solved. ` +
+            (tag.problemsSolved < 3
+              ? `This is a weak area with little practice — a good place to improve.`
+              : `This is a relatively practised area.`),
+          metadata: { kind: "topic", tag: tag.tagName, tier, count: tag.problemsSolved },
+        });
+      }
+      if (tags.length > 0) {
+        const total = tags.reduce((s, t) => s + t.problemsSolved, 0);
+        chunks.push({
+          id: `${userId}:tier:${tier}`,
+          document:
+            `${tier[0]!.toUpperCase() + tier.slice(1)} topics: ${tags.length} tags covered, ` +
+            `${total} problems solved across them. Strongest: ` +
+            [...tags]
+              .sort((a, b) => b.problemsSolved - a.problemsSolved)
+              .slice(0, 5)
+              .map((t) => `${t.tagName} (${t.problemsSolved})`)
+              .join(", ") +
+            ".",
+          metadata: { kind: "tier", tier },
+        });
+      }
+    }
+
+    // --- Languages ---
+    const languages = (snapshot.languageStats ?? []) as unknown as LanguageStat[];
+    if (languages.length > 0) {
+      chunks.push({
+        id: `${userId}:languages`,
+        document:
+          `Languages used: ` +
+          [...languages]
+            .sort((a, b) => b.problemsSolved - a.problemsSolved)
+            .map((l) => `${l.languageName} (${l.problemsSolved} problems)`)
+            .join(", ") +
+          ".",
+        metadata: { kind: "languages" },
+      });
     }
   }
 
-  for (const [tag, count] of topicCount) {
-    const d = topicDifficulty.get(tag)!;
-    chunks.push({
-      id: `${userId}:topic:${tag}`,
-      document:
-        `Topic "${tag}": solved ${count} problems ` +
-        `(${d.EASY} easy, ${d.MEDIUM} medium, ${d.HARD} hard). ` +
-        (count < 3 ? `This is a weak area with little practice — a good place to improve.` : ""),
-      metadata: { kind: "topic", tag, count },
-    });
-  }
+  // --- Recent activity: a sample, and labelled as one ---
+  const submissions = await prisma.submission.findMany({
+    where: { userId, statusDisplay: "Accepted" },
+    include: { problem: true },
+    orderBy: { timestamp: "desc" },
+    distinct: ["problemId"],
+    take: 25,
+  });
 
-  // --- Recent activity ---
-  const recent = submissions.slice(0, 15);
-  if (recent.length > 0) {
+  if (submissions.length > 0) {
     chunks.push({
       id: `${userId}:recent`,
       document:
-        `Recently solved problems: ` +
-        recent
+        `Most recently solved problems (a recent sample of ${submissions.length}, NOT the total solved count): ` +
+        submissions
           .map((s) => `${s.problem.title} (${s.problem.difficulty.toLowerCase()})`)
           .join(", ") +
-        ".",
+        ". Use the overall progress figures for totals.",
       metadata: { kind: "recent" },
     });
   }
-
-  // --- Difficulty distribution as a weakness signal ---
-  const diffCount = { EASY: 0, MEDIUM: 0, HARD: 0 };
-  for (const s of submissions) diffCount[s.problem.difficulty] += 1;
-  chunks.push({
-    id: `${userId}:difficulty`,
-    document:
-      `Difficulty breakdown of solved problems: ${diffCount.EASY} easy, ` +
-      `${diffCount.MEDIUM} medium, ${diffCount.HARD} hard. ` +
-      (diffCount.HARD < 5
-        ? `Few hard problems solved — increasing hard practice would build depth.`
-        : `Good coverage of hard problems.`),
-    metadata: { kind: "difficulty" },
-  });
 
   return chunks;
 }

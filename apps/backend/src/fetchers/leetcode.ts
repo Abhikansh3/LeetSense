@@ -81,7 +81,12 @@ async function gql<T>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Referer: "https://leetcode.com",
-    "User-Agent": "LeetSense/1.0",
+    Origin: "https://leetcode.com",
+    // LeetCode's edge rejects or challenges unfamiliar clients, and an
+    // authenticated session sent with a non-browser agent is the case it
+    // treats most harshly — so present as a normal browser.
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   };
 
   const auth = resolveCredentials(creds);
@@ -193,7 +198,19 @@ export async function fetchProfile(username: string): Promise<LeetCodeProfile> {
  * cookie to fetch a given username's data.
  */
 export async function fetchSessionUsername(creds?: LeetCodeCredentials | null): Promise<string | null> {
-  if (!resolveCredentials(creds)) return null;
+  return (await describeSession(creds)).username;
+}
+
+/**
+ * Same check, but reports *why* it failed so the UI can say something more
+ * useful than "rejected". Distinguishes a cookie LeetCode considers signed
+ * out from a request LeetCode refused to serve at all.
+ */
+export async function describeSession(
+  creds?: LeetCodeCredentials | null,
+): Promise<{ username: string | null; reason: "ok" | "no-credentials" | "signed-out" | "blocked"; detail?: string }> {
+  if (!resolveCredentials(creds)) return { username: null, reason: "no-credentials" };
+
   const query = /* GraphQL */ `
     query globalData {
       userStatus {
@@ -203,14 +220,18 @@ export async function fetchSessionUsername(creds?: LeetCodeCredentials | null): 
     }
   `;
   type Resp = { userStatus: { isSignedIn: boolean; username: string | null } | null };
+
   try {
     const data = await gql<Resp>(query, {}, creds);
-    if (!data.userStatus?.isSignedIn) return null;
-    return data.userStatus.username;
+    if (!data.userStatus?.isSignedIn || !data.userStatus.username) {
+      return { username: null, reason: "signed-out" };
+    }
+    return { username: data.userStatus.username, reason: "ok" };
   } catch (err) {
-    // Never log the cookie itself — only that resolution failed.
-    logger.warn({ err }, "Could not resolve LeetCode session owner; treating as signed out");
-    return null;
+    // Never log the cookie itself — only the transport-level failure.
+    const detail = err instanceof Error ? err.message.slice(0, 200) : "unknown error";
+    logger.warn({ detail }, "LeetCode refused the session check");
+    return { username: null, reason: "blocked", detail };
   }
 }
 
