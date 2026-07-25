@@ -1,5 +1,37 @@
 import { prisma, Difficulty } from "@leetsense/db";
 
+/**
+ * The whole-history aggregates LeetCode exposes publicly: acceptance rate,
+ * streak, languages and skill tiers. These describe every problem the user has
+ * ever solved, unlike the `Submission` rows which only cover what the public
+ * submission endpoint returns (~20 recent solves).
+ */
+export async function getProfileStats(userId: string) {
+  const snapshot = await prisma.profileSnapshot.findFirst({
+    where: { userId },
+    orderBy: { capturedAt: "desc" },
+  });
+  if (!snapshot) return { stats: null };
+
+  return {
+    stats: {
+      totalSolved: snapshot.totalSolved,
+      easySolved: snapshot.easySolved,
+      mediumSolved: snapshot.mediumSolved,
+      hardSolved: snapshot.hardSolved,
+      totalQuestions: snapshot.totalQuestions,
+      ranking: snapshot.ranking,
+      acceptanceRate: snapshot.acceptanceRate,
+      streak: snapshot.streak,
+      totalActiveDays: snapshot.totalActiveDays,
+      languageStats: snapshot.languageStats,
+      skillStats: snapshot.skillStats,
+      submissionStats: snapshot.submissionStats,
+      capturedAt: snapshot.capturedAt,
+    },
+  };
+}
+
 /** Headline numbers for the dashboard. */
 export async function getOverview(userId: string) {
   const snapshot = await prisma.profileSnapshot.findFirst({
