@@ -86,6 +86,9 @@ export async function getActivity(userId: string, cursor: string | undefined, li
   const rows = await prisma.submission.findMany({
     where: { userId, statusDisplay: "Accepted" },
     include: { problem: { select: { titleSlug: true, title: true, difficulty: true, tags: true } } },
+    // One entry per problem — this is a "problems you've solved" feed, so a
+    // problem solved five times should appear once, at its latest solve.
+    distinct: ["problemId"],
     orderBy: [{ timestamp: "desc" }, { id: "desc" }],
     take: limit + 1, // one extra to detect a next page
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
