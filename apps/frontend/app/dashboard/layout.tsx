@@ -4,11 +4,12 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { Logo, OverviewIcon, ProblemsIcon, ChatIcon, LogoutIcon } from "@/components/icons";
 
 const NAV = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
-  { href: "/dashboard/problems", label: "Problems", icon: "🧩" },
-  { href: "/dashboard/chat", label: "AI Mentor", icon: "🤖" },
+  { href: "/dashboard", label: "Overview", Icon: OverviewIcon },
+  { href: "/dashboard/problems", label: "Problems", Icon: ProblemsIcon },
+  { href: "/dashboard/chat", label: "AI Mentor", Icon: ChatIcon },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -21,48 +22,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-500">Loading…</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-[var(--color-faint)]">
+        Loading…
+      </div>
+    );
   }
+
+  const initials = (user.name ?? user.email).slice(0, 2).toUpperCase();
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <Link href="/dashboard" className="mb-8 px-2 text-xl font-bold text-white">
-          Leet<span className="text-[var(--color-accent-2)]">Sense</span>
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-5">
+        <Link href="/dashboard" className="mb-8 flex items-center gap-2 px-2">
+          <Logo />
+          <span className="text-[15px] font-semibold tracking-tight">LeetSense</span>
         </Link>
-        <nav className="space-y-1">
-          {NAV.map((item) => {
-            const active = pathname === item.href;
+
+        <p className="mb-2 px-3 text-[11px] font-medium uppercase tracking-wider text-[var(--color-faint)]">
+          Menu
+        </p>
+        <nav className="space-y-0.5">
+          {NAV.map(({ href, label, Icon }) => {
+            const active = pathname === href;
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   active
-                    ? "bg-[var(--color-accent)]/15 text-white"
-                    : "text-gray-400 hover:bg-[var(--color-surface-2)] hover:text-white"
+                    ? "bg-[var(--color-surface)] font-medium text-[var(--color-text)]"
+                    : "text-[var(--color-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
                 }`}
               >
-                <span>{item.icon}</span>
-                {item.label}
+                <Icon size={17} className={active ? "text-[var(--color-accent)]" : ""} />
+                {label}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto border-t border-[var(--color-border)] pt-4">
-          <p className="truncate px-2 text-sm text-gray-300">{user.name ?? user.email}</p>
-          <p className="truncate px-2 text-xs text-gray-500">
-            {user.leetcodeUsername ? `@${user.leetcodeUsername}` : "No LeetCode linked"}
-          </p>
-          <button
-            onClick={() => logout().then(() => router.push("/login"))}
-            className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-gray-400 hover:bg-[var(--color-surface-2)] hover:text-white"
-          >
-            Sign out
-          </button>
+
+        <div className="mt-auto">
+          <div className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-xs font-semibold text-[var(--color-accent)]">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium">{user.name ?? user.email}</p>
+              <p className="truncate text-xs text-[var(--color-faint)]">
+                {user.leetcodeUsername ? `@${user.leetcodeUsername}` : "No LeetCode linked"}
+              </p>
+            </div>
+            <button
+              onClick={() => logout().then(() => router.push("/login"))}
+              title="Sign out"
+              className="rounded-md p-1.5 text-[var(--color-faint)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+            >
+              <LogoutIcon size={16} />
+            </button>
+          </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto p-8">{children}</main>
+
+      <main className="min-w-0 flex-1">{children}</main>
     </div>
   );
 }

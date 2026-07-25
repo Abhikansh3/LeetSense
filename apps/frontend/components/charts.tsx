@@ -1,44 +1,74 @@
 "use client";
 
-/** Shared card wrapper. */
-export function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
+export function Card({
+  title,
+  right,
+  children,
+  className = "",
+}: {
+  title?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 ${className}`}>
-      {title && <h3 className="mb-4 text-sm font-semibold text-gray-300">{title}</h3>}
+    <div className={`card p-5 ${className}`}>
+      {(title || right) && (
+        <div className="mb-4 flex items-center justify-between">
+          {title && <h3 className="text-[13px] font-medium text-[var(--color-muted)]">{title}</h3>}
+          {right}
+        </div>
+      )}
       {children}
     </div>
   );
 }
 
-export function StatCard({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+export function StatCard({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  accent?: string;
+}) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-1 text-3xl font-bold" style={{ color: accent ?? "#fff" }}>
+    <div className="card p-5">
+      <p className="text-[13px] text-[var(--color-muted)]">{label}</p>
+      <p className="num mt-2 text-3xl font-semibold" style={{ color: accent ?? "var(--color-text)" }}>
         {value}
       </p>
+      {hint && <p className="mt-1 text-xs text-[var(--color-faint)]">{hint}</p>}
     </div>
   );
 }
 
-const DIFF_COLORS = { EASY: "var(--color-easy)", MEDIUM: "var(--color-medium)", HARD: "var(--color-hard)" };
+const DIFF = {
+  EASY: { color: "var(--color-easy)", label: "Easy" },
+  MEDIUM: { color: "var(--color-medium)", label: "Medium" },
+  HARD: { color: "var(--color-hard)", label: "Hard" },
+} as const;
 
 export function DifficultyBar({ data }: { data: { EASY: number; MEDIUM: number; HARD: number } }) {
   const total = data.EASY + data.MEDIUM + data.HARD || 1;
   return (
     <div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-[var(--color-bg)]">
+      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full">
         {(["EASY", "MEDIUM", "HARD"] as const).map((k) => (
-          <div key={k} style={{ width: `${(data[k] / total) * 100}%`, background: DIFF_COLORS[k] }} />
+          <div key={k} style={{ width: `${(data[k] / total) * 100}%`, background: DIFF[k].color }} />
         ))}
       </div>
-      <div className="mt-3 flex gap-4 text-sm">
+      <div className="mt-4 grid grid-cols-3 gap-2">
         {(["EASY", "MEDIUM", "HARD"] as const).map((k) => (
-          <div key={k} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: DIFF_COLORS[k] }} />
-            <span className="text-gray-400">
-              {k[0] + k.slice(1).toLowerCase()} <span className="font-semibold text-white">{data[k]}</span>
-            </span>
+          <div key={k}>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: DIFF[k].color }} />
+              <span className="text-xs text-[var(--color-muted)]">{DIFF[k].label}</span>
+            </div>
+            <p className="num mt-1 text-xl font-semibold">{data[k]}</p>
           </div>
         ))}
       </div>
@@ -62,25 +92,34 @@ export function Heatmap({ days }: { days: { date: string; count: number }[] }) {
     cells.push({ date: key, count: counts.get(key) ?? 0 });
   }
 
-  const color = (c: number) => {
-    if (c === 0) return "var(--color-bg)";
+  const level = (c: number) => {
+    if (c === 0) return "var(--color-bg-subtle)";
     const t = c / max;
-    if (t > 0.66) return "#6366f1";
-    if (t > 0.33) return "#4f46e5";
-    return "#3730a3";
+    if (t > 0.66) return "#7c6cf5";
+    if (t > 0.33) return "#5b4fca";
+    return "#3a3480";
   };
 
   return (
-    <div className="overflow-x-auto">
-      <div className="grid grid-flow-col grid-rows-7 gap-1" style={{ width: "max-content" }}>
-        {cells.map((cell) => (
-          <div
-            key={cell.date}
-            title={`${cell.date}: ${cell.count} solved`}
-            className="h-3 w-3 rounded-sm"
-            style={{ background: color(cell.count) }}
-          />
+    <div>
+      <div className="overflow-x-auto pb-1">
+        <div className="grid grid-flow-col grid-rows-7 gap-[3px]" style={{ width: "max-content" }}>
+          {cells.map((cell) => (
+            <div
+              key={cell.date}
+              title={`${cell.date}: ${cell.count} solved`}
+              className="h-[11px] w-[11px] rounded-[3px] ring-1 ring-inset ring-white/[0.03]"
+              style={{ background: level(cell.count) }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-[var(--color-faint)]">
+        <span>Less</span>
+        {["var(--color-bg-subtle)", "#3a3480", "#5b4fca", "#7c6cf5"].map((c) => (
+          <span key={c} className="h-[10px] w-[10px] rounded-[2px]" style={{ background: c }} />
         ))}
+        <span>More</span>
       </div>
     </div>
   );
@@ -89,12 +128,12 @@ export function Heatmap({ days }: { days: { date: string; count: number }[] }) {
 /** Weakness radar over up to 8 topics. */
 export function TopicRadar({ topics }: { topics: { tag: string; value: number }[] }) {
   if (topics.length < 3) {
-    return <p className="text-sm text-gray-500">Sync more data to see your topic radar.</p>;
+    return <EmptyHint>Sync more data to see your topic radar.</EmptyHint>;
   }
   const size = 260;
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 40;
+  const r = size / 2 - 42;
   const max = Math.max(...topics.map((t) => t.value));
   const n = topics.length;
 
@@ -102,7 +141,6 @@ export function TopicRadar({ topics }: { topics: { tag: string; value: number }[
     const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
     return [cx + Math.cos(angle) * r * ratio, cy + Math.sin(angle) * r * ratio];
   };
-
   const polygon = topics.map((t, i) => point(i, t.value / max).join(",")).join(" ");
 
   return (
@@ -119,11 +157,11 @@ export function TopicRadar({ topics }: { topics: { tag: string; value: number }[
         const [x, y] = point(i, 1);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--color-border)" />;
       })}
-      <polygon points={polygon} fill="rgba(99,102,241,0.35)" stroke="var(--color-accent)" strokeWidth={2} />
+      <polygon points={polygon} fill="var(--color-accent)" fillOpacity={0.22} stroke="var(--color-accent)" strokeWidth={1.75} />
       {topics.map((t, i) => {
-        const [x, y] = point(i, 1.18);
+        const [x, y] = point(i, 1.2);
         return (
-          <text key={t.tag} x={x} y={y} fontSize={8} fill="#9ca3af" textAnchor="middle" dominantBaseline="middle">
+          <text key={t.tag} x={x} y={y} fontSize={8.5} fill="var(--color-faint)" textAnchor="middle" dominantBaseline="middle">
             {t.tag.length > 12 ? t.tag.slice(0, 11) + "…" : t.tag}
           </text>
         );
@@ -135,11 +173,11 @@ export function TopicRadar({ topics }: { topics: { tag: string; value: number }[
 /** Line chart of total solved over time. */
 export function GrowthChart({ snapshots }: { snapshots: { capturedAt: string; totalSolved: number }[] }) {
   if (snapshots.length < 2) {
-    return <p className="text-sm text-gray-500">Two or more syncs are needed to chart growth.</p>;
+    return <EmptyHint>Two or more syncs are needed to chart growth.</EmptyHint>;
   }
   const w = 600;
   const h = 200;
-  const pad = 30;
+  const pad = 24;
   const values = snapshots.map((s) => s.totalSolved);
   const max = Math.max(...values);
   const min = Math.min(...values);
@@ -157,15 +195,23 @@ export function GrowthChart({ snapshots }: { snapshots: { capturedAt: string; to
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
       <defs>
         <linearGradient id="growth" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(34,211,238,0.35)" />
-          <stop offset="100%" stopColor="rgba(34,211,238,0)" />
+          <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.28} />
+          <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#growth)" />
-      <path d={path} fill="none" stroke="var(--color-accent-2)" strokeWidth={2} />
+      <path d={path} fill="none" stroke="var(--color-accent)" strokeWidth={2} />
       {pts.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={3} fill="var(--color-accent-2)" />
+        <circle key={i} cx={x} cy={y} r={2.5} fill="var(--color-bg)" stroke="var(--color-accent)" strokeWidth={1.5} />
       ))}
     </svg>
+  );
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-40 items-center justify-center text-center text-sm text-[var(--color-faint)]">
+      {children}
+    </div>
   );
 }

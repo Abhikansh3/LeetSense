@@ -1,45 +1,69 @@
 import Link from "next/link";
+import { Logo, ArrowRightIcon, OverviewIcon, ChatIcon, SyncIcon } from "@/components/icons";
+
+const features = [
+  { icon: SyncIcon, title: "Real-time sync", body: "Import your LeetCode history with live, staged progress over SSE." },
+  { icon: ChatIcon, title: "Grounded AI mentor", body: "Ask questions answered from your actual submissions, not generic advice." },
+  { icon: OverviewIcon, title: "Deep analytics", body: "Activity heatmaps, topic strength radar, and growth trends over time." },
+];
 
 export default function Landing() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 text-center">
-      <span className="mb-4 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-1 text-xs font-medium text-[var(--color-accent-2)]">
-        AI-powered · RAG · Gemini
-      </span>
-      <h1 className="bg-gradient-to-r from-indigo-400 to-cyan-300 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
-        LeetSense
-      </h1>
-      <p className="mt-6 max-w-xl text-lg text-gray-400">
-        Sync your LeetCode history and ask an AI mentor — grounded in your real data — what
-        to practice next, where you&apos;re weak, and how you&apos;re growing.
-      </p>
-      <div className="mt-10 flex gap-4">
-        <Link
-          href="/register"
-          className="rounded-lg bg-[var(--color-accent)] px-6 py-3 font-medium text-white transition hover:opacity-90"
-        >
-          Get started
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 font-medium transition hover:bg-[var(--color-surface-2)]"
-        >
-          Sign in
-        </Link>
-      </div>
+    <div className="min-h-screen">
+      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+        <div className="flex items-center gap-2">
+          <Logo />
+          <span className="text-[15px] font-semibold tracking-tight">LeetSense</span>
+        </div>
+        <nav className="flex items-center gap-1">
+          <Link href="/login" className="btn btn-ghost">
+            Sign in
+          </Link>
+          <Link href="/register" className="btn btn-primary">
+            Get started
+          </Link>
+        </nav>
+      </header>
 
-      <div className="mt-16 grid grid-cols-1 gap-4 text-left sm:grid-cols-3">
-        {[
-          { t: "Real-time sync", d: "9-stage SSE progress as your history imports." },
-          { t: "RAG chatbot", d: "Answers grounded in your actual submissions." },
-          { t: "Deep analytics", d: "Heatmaps, topic radar, and growth trends." },
-        ].map((f) => (
-          <div key={f.t} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-            <h3 className="font-semibold text-white">{f.t}</h3>
-            <p className="mt-1 text-sm text-gray-400">{f.d}</p>
+      <main className="mx-auto max-w-5xl px-6">
+        <section className="border-b border-[var(--color-border)] py-24 text-center">
+          <div className="badge mx-auto mb-6 w-fit">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+            AI-powered · RAG · Gemini
           </div>
-        ))}
-      </div>
-    </main>
+          <h1 className="mx-auto max-w-3xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+            Understand your LeetCode practice, not just track it.
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-muted)]">
+            LeetSense syncs your solved history and gives you an AI mentor grounded in your real
+            data — what to practice next, where you&apos;re weak, and how you&apos;re improving.
+          </p>
+          <div className="mt-9 flex items-center justify-center gap-3">
+            <Link href="/register" className="btn btn-primary px-5 py-2.5">
+              Start analyzing <ArrowRightIcon size={16} />
+            </Link>
+            <Link href="/login" className="btn btn-secondary px-5 py-2.5">
+              Sign in
+            </Link>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-3">
+          {features.map((f) => (
+            <div key={f.title} className="bg-[var(--color-surface)] p-6">
+              <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                <f.icon size={18} />
+              </div>
+              <h3 className="text-[15px] font-medium">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-muted)]">{f.body}</p>
+            </div>
+          ))}
+        </section>
+
+        <footer className="py-10 text-center text-sm text-[var(--color-faint)]">
+          Built with Next.js, Express, Prisma, Gemini & ChromaDB.
+        </footer>
+      </main>
+    </div>
   );
 }

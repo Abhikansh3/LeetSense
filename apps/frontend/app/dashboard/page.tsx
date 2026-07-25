@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { SyncButton } from "@/components/SyncButton";
+import { TopBar } from "@/components/TopBar";
 import { Card, StatCard, DifficultyBar, Heatmap, TopicRadar, GrowthChart } from "@/components/charts";
 
 interface Overview {
@@ -41,68 +42,81 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
+  const activeDays = heatmap.length;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Overview</h1>
-          <p className="text-sm text-gray-400">Your LeetCode analytics at a glance.</p>
-        </div>
-      </header>
+    <div>
+      <TopBar title="Overview" subtitle="Your LeetCode analytics at a glance." />
 
-      <SyncButton onDone={load} />
+      <div className="mx-auto max-w-6xl space-y-5 px-8 py-6">
+        <SyncButton onDone={load} />
 
-      {loading ? (
-        <p className="text-gray-500">Loading analytics…</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Total solved" value={overview?.snapshot?.totalSolved ?? 0} accent="#22d3ee" />
-            <StatCard label="Submissions synced" value={overview?.totalSubmissions ?? 0} />
-            <StatCard label="Global ranking" value={overview?.snapshot?.ranking?.toLocaleString() ?? "—"} />
-            <StatCard
-              label="Hard solved"
-              value={overview?.byDifficulty.HARD ?? 0}
-              accent="var(--color-hard)"
-            />
-          </div>
+        {loading ? (
+          <SkeletonGrid />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCard label="Total solved" value={overview?.snapshot?.totalSolved ?? 0} accent="var(--color-accent)" />
+              <StatCard label="Submissions synced" value={overview?.totalSubmissions ?? 0} />
+              <StatCard
+                label="Global ranking"
+                value={overview?.snapshot?.ranking ? `#${overview.snapshot.ranking.toLocaleString()}` : "—"}
+              />
+              <StatCard label="Active days" value={activeDays} hint="in the last year" />
+            </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card title="Difficulty breakdown">
-              <DifficultyBar data={overview?.byDifficulty ?? { EASY: 0, MEDIUM: 0, HARD: 0 }} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card title="Difficulty breakdown">
+                <DifficultyBar data={overview?.byDifficulty ?? { EASY: 0, MEDIUM: 0, HARD: 0 }} />
+              </Card>
+              <Card title="Top topics">
+                <div className="flex flex-wrap gap-2">
+                  {overview?.topTopics.length ? (
+                    overview.topTopics.map((t) => (
+                      <span key={t.tag} className="badge">
+                        {t.tag}
+                        <span className="num text-[var(--color-text)]">{t.count}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[var(--color-faint)]">No topics yet — run a sync.</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            <Card title="Activity" right={<span className="text-xs text-[var(--color-faint)]">last 12 months</span>}>
+              <Heatmap days={heatmap} />
             </Card>
-            <Card title="Top topics">
-              <div className="flex flex-wrap gap-2">
-                {overview?.topTopics.length ? (
-                  overview.topTopics.map((t) => (
-                    <span
-                      key={t.tag}
-                      className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 text-xs text-gray-300"
-                    >
-                      {t.tag} <span className="text-[var(--color-accent-2)]">{t.count}</span>
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">No topics yet — run a sync.</p>
-                )}
-              </div>
-            </Card>
-          </div>
 
-          <Card title="Activity (last year)">
-            <Heatmap days={heatmap} />
-          </Card>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card title="Topic strength">
+                <TopicRadar topics={radar} />
+              </Card>
+              <Card title="Growth over time">
+                <GrowthChart snapshots={snapshots} />
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card title="Topic strength radar">
-              <TopicRadar topics={radar} />
-            </Card>
-            <Card title="Growth over time">
-              <GrowthChart snapshots={snapshots} />
-            </Card>
-          </div>
-        </>
-      )}
+function SkeletonGrid() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="card h-[92px] animate-pulse" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="card h-40 animate-pulse" />
+        <div className="card h-40 animate-pulse" />
+      </div>
+      <div className="card h-32 animate-pulse" />
     </div>
   );
 }

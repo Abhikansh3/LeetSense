@@ -1,0 +1,106 @@
+import type { SVGProps } from "react";
+
+type IconProps = SVGProps<SVGSVGElement> & { size?: number };
+
+function Base({ size = 18, children, ...props }: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const OverviewIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3 3v18h18" />
+    <path d="M7 15l3-4 3 2 4-6" />
+  </Base>
+);
+
+export const ProblemsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18M8 4v16" />
+  </Base>
+);
+
+export const ChatIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z" />
+  </Base>
+);
+
+export const SyncIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+    <path d="M21 4v4h-4M3 20v-4h4" />
+  </Base>
+);
+
+export const SparkIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+    <path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+  </Base>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </Base>
+);
+
+export const ArrowRightIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Base>
+);
+
+export const ExternalIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </Base>
+);
+
+export const LogoutIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5M21 12H9" />
+  </Base>
+);
+
+export const SendIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M22 2 11 13" />
+    <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+  </Base>
+);
+
+/** The LeetSense mark: a stylized pulse/activity glyph. */
+export const Logo = ({ size = 22, ...props }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+    <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--color-accent)" fillOpacity="0.14" />
+    <rect x="1.5" y="1.5" width="21" height="21" rx="5.5" stroke="var(--color-accent)" strokeOpacity="0.5" />
+    <path
+      d="M4 13.5h3l2-5 3 8 2-4.5h6"
+      stroke="var(--color-accent)"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
