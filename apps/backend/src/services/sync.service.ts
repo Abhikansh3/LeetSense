@@ -156,9 +156,15 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
       });
     }
 
-    // 7. RAG indexing — embed the freshly synced data (skipped if no Gemini key)
+    // 7. RAG indexing — embed the freshly synced data (skipped if no Gemini key).
+    // Non-fatal: the core sync already succeeded, so an embedding hiccup only
+    // degrades AI chat, it shouldn't fail the whole job.
     await emit(userId, jobId, "indexing");
-    await indexUserData(userId);
+    try {
+      await indexUserData(userId);
+    } catch (err) {
+      logger.warn({ err, userId }, "RAG indexing failed (sync still completed)");
+    }
 
     // 8. Done
     await emit(userId, jobId, "done", { totalSolved: profile.totalSolved });

@@ -21,7 +21,7 @@ const envSchema = z.object({
 
   GEMINI_API_KEY: z.string().default(""),
   GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
-  GEMINI_EMBED_MODEL: z.string().default("text-embedding-004"),
+  GEMINI_EMBED_MODEL: z.string().default("gemini-embedding-001"),
 
   CHROMA_URL: z.string().default("http://localhost:8000"),
   CHROMA_API_KEY: z.string().default(""),
