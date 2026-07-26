@@ -7,6 +7,9 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // Overrides the level implied by NODE_ENV. The load test sets this to
+  // "silent" so request logging doesn't distort the latency it measures.
+  LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug", "trace"]).optional(),
   BACKEND_PORT: z.coerce.number().default(3000),
   CORS_ORIGIN: z.string().default("http://localhost:3001"),
 

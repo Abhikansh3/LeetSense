@@ -2,6 +2,7 @@ import pino from "pino";
 import { env } from "../config/env.js";
 
 function level(): pino.Level | "silent" {
+  if (env.LOG_LEVEL) return env.LOG_LEVEL;
   // Tests assert on responses, not on log output; leaving this at debug buries
   // failures under a request log for every supertest call.
   if (env.NODE_ENV === "test") return "silent";
