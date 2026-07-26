@@ -32,6 +32,12 @@ COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+# Pushes the schema then starts the API. Used by hosts that have no separate
+# release/migration step; chmod here rather than relying on the checked-in
+# file mode surviving every checkout.
+COPY apps/backend/docker-entrypoint.sh ./apps/backend/docker-entrypoint.sh
+RUN chmod +x ./apps/backend/docker-entrypoint.sh
+
 EXPOSE 3000
 # The command is overridden per-service (API vs worker) in docker-compose.
 CMD ["node", "apps/backend/dist/index.js"]

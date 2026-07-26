@@ -26,13 +26,10 @@ services:
     # Fails the deploy if the app can't reach Postgres, rather than going live
     # broken.
     healthCheckPath: /api/health/ready
-    # No checked-in migrations, so the schema is pushed on boot. The prisma
-    # binary is under packages/db: pnpm only links a workspace's own
-    # dependencies into its .bin.
-    dockerCommand: >-
-      sh -c "packages/db/node_modules/.bin/prisma db push
-      --schema packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
-      && node apps/backend/dist/index.js"
+    # Pushes the schema, then starts the API. A bare path, because Render
+    # quotes this value into a single word — a chained `a && b` command comes
+    # back as "sh: 1: <the whole string>: not found" and exits 127.
+    dockerCommand: ./apps/backend/docker-entrypoint.sh
 
     envVars:
       - key: NODE_ENV
