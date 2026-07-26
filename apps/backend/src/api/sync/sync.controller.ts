@@ -4,6 +4,7 @@ import { prisma } from "@leetsense/db";
 import { BadRequest, Unauthorized } from "../../lib/errors.js";
 import { verifyAccessToken } from "../../lib/jwt.js";
 import { createRedis } from "../../lib/redis.js";
+import { invalidateUserStats } from "../../lib/cache.js";
 import { createSyncJob, progressChannel } from "../../services/sync.service.js";
 import { enqueueSync } from "../../queue/sync.queue.js";
 
@@ -34,6 +35,10 @@ export async function trigger(req: Request, res: Response) {
         prisma.submission.deleteMany({ where: { userId } }),
         prisma.profileSnapshot.deleteMany({ where: { userId } }),
       ]);
+      // Those rows are what the cached aggregations were built from, so the
+      // cache has to go with them — the sync that would otherwise invalidate
+      // it hasn't run yet.
+      await invalidateUserStats(userId);
     }
 
     await prisma.user.update({ where: { id: userId }, data: { leetcodeUsername } });

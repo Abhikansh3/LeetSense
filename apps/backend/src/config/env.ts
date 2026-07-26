@@ -22,6 +22,16 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
+  // Read-through Redis cache over the /stats aggregations. On by default;
+  // the load-test harness turns it off to measure the uncached baseline.
+  CACHE_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  // Upper bound on staleness. Entries are normally invalidated the moment a
+  // sync completes, so this only matters if that invalidation is missed.
+  STATS_CACHE_TTL: z.coerce.number().int().positive().default(300),
+
   // Run the BullMQ sync worker inside the API process. Defaults to on in
   // development (so `pnpm dev` alone can complete a sync) and off elsewhere,
   // where the worker runs as its own process.

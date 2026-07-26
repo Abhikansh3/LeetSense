@@ -1,5 +1,6 @@
 import { prisma, Difficulty, SyncStatus, type Prisma } from "@leetsense/db";
 import { redis } from "../lib/redis.js";
+import { invalidateUserStats } from "../lib/cache.js";
 import { logger } from "../lib/logger.js";
 import {
   fetchProfile,
@@ -200,6 +201,12 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
       });
     }
 
+    // The dashboard aggregations are cached per user, and this is the only
+    // thing that changes what they read. Invalidate before the "done" event —
+    // that event is what makes the frontend refetch, so invalidating after it
+    // would race the refetch and re-cache the pre-sync numbers.
+    await invalidateUserStats(userId);
+
     // 7. RAG indexing — embed the freshly synced data (skipped if no Gemini key).
     // Non-fatal: the core sync already succeeded, so an embedding hiccup only
     // degrades AI chat, it shouldn't fail the whole job.
@@ -215,6 +222,9 @@ export async function runSync(userId: string, jobId: string): Promise<void> {
     logger.info({ userId, jobId, submissions: raw.length }, "Sync completed");
   } catch (err) {
     logger.error({ err, userId, jobId }, "Sync failed");
+    // A sync can fail after the snapshot was written, so the cache may already
+    // be stale even on the failure path.
+    await invalidateUserStats(userId);
     await prisma.syncJob.update({
       where: { id: jobId },
       data: {
