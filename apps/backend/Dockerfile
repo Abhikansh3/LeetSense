@@ -25,8 +25,14 @@ RUN npm install -g pnpm@10.18.3
 WORKDIR /app
 ENV NODE_ENV=production
 
+# pnpm puts a workspace's own dependencies in that workspace's node_modules as
+# symlinks into the root .pnpm store — the root node_modules holds only the
+# store and the root package's own deps. Both halves are needed or nothing the
+# backend imports resolves: `Cannot find package 'dotenv'`. The symlinks are
+# relative, so they resolve as long as the two trees land in the same layout.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=build /app/package.json ./package.json
