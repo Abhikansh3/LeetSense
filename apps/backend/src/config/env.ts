@@ -7,6 +7,9 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // Overrides the level implied by NODE_ENV. The load test sets this to
+  // "silent" so request logging doesn't distort the latency it measures.
+  LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug", "trace"]).optional(),
   BACKEND_PORT: z.coerce.number().default(3000),
   CORS_ORIGIN: z.string().default("http://localhost:3001"),
 
@@ -19,8 +22,25 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL: z.string().default("7d"),
+  // SameSite policy for the refresh cookie. Left unset it follows the
+  // deployment shape: "lax" in development, where the browser treats
+  // localhost:3001 → localhost:3000 as same-site, and "none" in production,
+  // where the frontend (Vercel) and API (Fly) are different sites and a Lax
+  // cookie would simply never be sent. Set explicitly when both are served
+  // from one domain and the stricter policy is wanted.
+  COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
 
   REDIS_URL: z.string().default("redis://localhost:6379"),
+
+  // Read-through Redis cache over the /stats aggregations. On by default;
+  // the load-test harness turns it off to measure the uncached baseline.
+  CACHE_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  // Upper bound on staleness. Entries are normally invalidated the moment a
+  // sync completes, so this only matters if that invalidation is missed.
+  STATS_CACHE_TTL: z.coerce.number().int().positive().default(300),
 
   // Run the BullMQ sync worker inside the API process. Defaults to on in
   // development (so `pnpm dev` alone can complete a sync) and off elsewhere,

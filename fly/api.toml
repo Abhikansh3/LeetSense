@@ -1,0 +1,71 @@
+# LeetSense API + sync worker on Fly.io.
+#
+#   fly deploy -c fly/api.toml          (run from the repository root —
+#                                        the build context is the root)
+#
+# One app, two process groups. They share an image and a secret set, which is
+# what the split is for: the worker's job is to keep long LeetCode syncs off
+# the machines answering requests, not to be separately configured.
+
+app = "leetsense-api"
+primary_region = "bom"
+
+[build]
+  dockerfile = "apps/backend/Dockerfile"
+
+[processes]
+  app = "node apps/backend/dist/index.js"
+  worker = "node apps/backend/dist/worker.js"
+
+[deploy]
+  # There are no checked-in migrations, so the schema is pushed. This runs in a
+  # temporary machine before the new release goes live, so a failure here
+  # aborts the deploy rather than half-applying it.
+  # The binary lives in the db package, not the root: pnpm only links a
+  # workspace's own dependencies into its .bin, and prisma belongs to
+  # @leetsense/db.
+  release_command = "packages/db/node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --skip-generate --accept-data-loss"
+
+[env]
+  NODE_ENV = "production"
+  BACKEND_PORT = "3000"
+  # The worker group owns job processing; the API machines must not also run
+  # one or every job would be picked up twice.
+  WORKER_IN_PROCESS = "false"
+  # Reached over Fly's private network — see fly/chroma.toml, which
+  # deliberately publishes no public service.
+  CHROMA_URL = "http://leetsense-chroma.internal:8000"
+  STATS_CACHE_TTL = "300"
+  CACHE_ENABLED = "true"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Only the API group serves HTTP. The worker has no listener at all.
+  processes = ["app"]
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # Kept warm: a suspended machine costs nothing but adds a cold start to the
+  # first request, which is exactly the request a demo link gets judged on.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    # Readiness, not liveness — this one fails if Postgres is unreachable, so a
+    # machine that cannot serve real traffic is taken out of rotation.
+    path = "/api/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["app"]
+
+[[vm]]
+  # Syncs are IO-bound on LeetCode's API rather than CPU-bound, so one small
+  # machine handles the queue comfortably at this scale.
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["worker"]

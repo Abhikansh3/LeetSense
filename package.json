@@ -11,6 +11,9 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "typecheck": "turbo run typecheck",
     "start": "turbo run start",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "db:generate": "pnpm --filter @leetsense/db db:generate",
@@ -19,11 +22,22 @@
     "db:studio": "pnpm --filter @leetsense/db db:studio"
   },
   "devDependencies": {
+    "@types/autocannon": "^7.12.7",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "autocannon": "^8.0.0",
     "prettier": "^3.4.2",
+    "supertest": "^7.2.2",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "esbuild"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
   }
 }

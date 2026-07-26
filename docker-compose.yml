@@ -60,8 +60,10 @@ services:
       # The `worker` service below owns job processing here.
       WORKER_IN_PROCESS: "false"
     # Uses DATABASE_URL from the container env (not a .env file). db push keeps
-    # the schema in sync without checked-in migrations.
-    command: sh -c "node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && node apps/backend/dist/index.js"
+    # the schema in sync without checked-in migrations. The prisma binary is
+    # under packages/db, not the root: pnpm only links a workspace's own
+    # dependencies into its .bin, and prisma belongs to @leetsense/db.
+    command: sh -c "packages/db/node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && node apps/backend/dist/index.js"
     ports:
       - "3000:3000"
 

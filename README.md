@@ -74,6 +74,13 @@ docker compose up -d          # infra + api + worker + web
 docker compose --profile monitoring up -d   # + prometheus & grafana
 ```
 
+### Deploying
+
+Frontend on Vercel, API + sync worker + ChromaDB on Fly.io. The configs are
+checked in (`fly/`, `apps/frontend/vercel.json`); see **[DEPLOYMENT.md](DEPLOYMENT.md)**
+for the step-by-step, including the cross-domain cookie setting that login
+depends on.
+
 ## API overview
 
 | Method | Route | Purpose |
@@ -89,6 +96,59 @@ docker compose --profile monitoring up -d   # + prometheus & grafana
 
 All read endpoints are scoped to the authenticated user. `Problem` is a shared
 table, so anything querying it must filter by the caller's submissions.
+
+## Caching
+
+The `/api/stats` aggregations re-read a user's whole submission history to
+answer one dashboard panel. That data only changes when a sync completes, so
+each endpoint is wrapped in a read-through Redis cache that the sync
+invalidates — including on the failure path, and on a relink, which deletes the
+rows the cache was built from.
+
+Invalidation bumps a per-user version counter (`stats:<userId>:v<n>:<name>`)
+rather than deleting keys, so a whole generation is dropped in one `INCR` with
+no `KEYS` or `SCAN`. Stale entries expire on their own TTL. Reads and writes are
+best-effort: an unreachable Redis degrades to an uncached query, never a failed
+request.
+
+### Measured effect
+
+`pnpm --filter @leetsense/backend bench` boots the API twice — once with
+`CACHE_ENABLED=false`, once on — and drives each run with autocannon. Below is
+a run on an M-series laptop against local Postgres and Redis: 20 connections,
+10s per endpoint, against a seeded history of 2,400 submissions over 800
+problems.
+
+| Endpoint | p50 | p95 | p99 | req/s |
+| --- | --- | --- | --- | --- |
+| `/stats/overview` | 164 → 1 ms | 256 → 2 ms | 276 → 2 ms | 117 → 12,439 |
+| `/stats/heatmap` | 46 → 3 ms | 86 → 3 ms | 90 → 4 ms | 406 → 6,396 |
+| `/stats/radar` | 175 → 1 ms | 391 → 2 ms | 443 → 3 ms | 104 → 12,728 |
+
+p95 falls by 96–99%. The gap widens with history size, since the uncached path
+is linear in submissions and the cached path is a single Redis `GET`.
+
+To re-run it, point `BENCH_DATABASE_URL` at a scratch database — the harness
+seeds and then removes its own rows, but it should not be aimed at data anyone
+cares about:
+
+```bash
+createdb leetsense_bench
+DATABASE_URL="postgresql://…/leetsense_bench" pnpm --filter @leetsense/db db:push
+BENCH_DATABASE_URL="postgresql://…/leetsense_bench" pnpm --filter @leetsense/backend bench
+```
+
+## Tests
+
+```bash
+pnpm test                 # 189 tests, ~2s, no services required
+pnpm test:coverage        # 91% of backend statements
+```
+
+Everything that opens a socket — Prisma, Redis, Chroma, Gemini, BullMQ and the
+LeetCode fetcher — is mocked at the package boundary, so the suite runs
+anywhere without Docker. Redis is a small in-memory implementation rather than
+a stub, so cache behaviour is exercised through the real key layout.
 
 ## Pages
 

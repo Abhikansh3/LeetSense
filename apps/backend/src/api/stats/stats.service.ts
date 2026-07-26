@@ -1,4 +1,17 @@
 import { prisma, Difficulty } from "@leetsense/db";
+import { cached } from "../../lib/cache.js";
+
+/**
+ * Every aggregation here re-reads a user's whole submission history to answer
+ * one dashboard panel, and that data only moves when a sync completes — so
+ * each is wrapped in a read-through Redis cache that a finished sync
+ * invalidates. The `compute*` functions below hold the actual logic and are
+ * exported for tests; the cached wrappers are what the routes call.
+ *
+ * `getActivity` is deliberately not cached: it is cursor-paginated, so caching
+ * it would mean one entry per cursor a user happens to scroll to, for a query
+ * that is already a single indexed page read.
+ */
 
 /**
  * The whole-history aggregates LeetCode exposes publicly: acceptance rate,
@@ -6,7 +19,7 @@ import { prisma, Difficulty } from "@leetsense/db";
  * ever solved, unlike the `Submission` rows which only cover what the public
  * submission endpoint returns (~20 recent solves).
  */
-export async function getProfileStats(userId: string) {
+export async function computeProfileStats(userId: string) {
   const snapshot = await prisma.profileSnapshot.findFirst({
     where: { userId },
     orderBy: { capturedAt: "desc" },
@@ -33,7 +46,7 @@ export async function getProfileStats(userId: string) {
 }
 
 /** Headline numbers for the dashboard. */
-export async function getOverview(userId: string) {
+export async function computeOverview(userId: string) {
   const snapshot = await prisma.profileSnapshot.findFirst({
     where: { userId },
     orderBy: { capturedAt: "desc" },
@@ -84,7 +97,7 @@ export async function getOverview(userId: string) {
 }
 
 /** Submission counts per day for a GitHub-style heatmap (last ~year). */
-export async function getHeatmap(userId: string) {
+export async function computeHeatmap(userId: string) {
   const since = new Date();
   since.setFullYear(since.getFullYear() - 1);
 
@@ -102,7 +115,7 @@ export async function getHeatmap(userId: string) {
 }
 
 /** Growth snapshots over time for the trend chart. */
-export async function getSnapshots(userId: string) {
+export async function computeSnapshots(userId: string) {
   return prisma.profileSnapshot.findMany({
     where: { userId },
     orderBy: { capturedAt: "asc" },
@@ -146,7 +159,7 @@ export async function getActivity(userId: string, cursor: string | undefined, li
 }
 
 /** Weakness radar: solved count grouped by topic (with difficulty weighting). */
-export async function getTopicRadar(userId: string) {
+export async function computeTopicRadar(userId: string) {
   const submissions = await prisma.submission.findMany({
     where: { userId },
     include: { problem: { select: { id: true, tags: true, difficulty: true } } },
@@ -170,3 +183,16 @@ export async function getTopicRadar(userId: string) {
     .slice(0, 8)
     .map(([tag, value]) => ({ tag, value }));
 }
+
+// --- Cached entry points, called by the routes ---
+
+export const getProfileStats = (userId: string) =>
+  cached(userId, "profile", () => computeProfileStats(userId));
+
+export const getOverview = (userId: string) => cached(userId, "overview", () => computeOverview(userId));
+
+export const getHeatmap = (userId: string) => cached(userId, "heatmap", () => computeHeatmap(userId));
+
+export const getSnapshots = (userId: string) => cached(userId, "snapshots", () => computeSnapshots(userId));
+
+export const getTopicRadar = (userId: string) => cached(userId, "radar", () => computeTopicRadar(userId));

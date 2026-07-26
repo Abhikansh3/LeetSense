@@ -1,0 +1,33 @@
+# ChromaDB, the vector store behind the RAG assistant.
+#
+#   fly deploy -c fly/chroma.toml
+#
+# Note what is *absent*: there is no [http_service], so this app has no public
+# address. Chroma ships with no authentication — anything that can reach it can
+# read and delete every user's embeddings — so it is reachable only from other
+# machines in the organisation, at leetsense-chroma.internal:8000 over Fly's
+# private network.
+
+app = "leetsense-chroma"
+primary_region = "bom"
+
+[build]
+  image = "chromadb/chroma:0.5.20"
+
+[env]
+  IS_PERSISTENT = "TRUE"
+  ANONYMIZED_TELEMETRY = "FALSE"
+
+[mounts]
+  source = "chroma_data"
+  destination = "/chroma/chroma"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  # The HNSW index is held in memory; 512mb is thin once a few users are
+  # indexed, and an out-of-memory kill during a write is what corrupts the
+  # index into the "contigious 2D array" failure the reindex script exists for.
+  memory = "1gb"
+
+# Deliberately no auto_stop: the collection is loaded from disk on start, and
+# stopping between syncs would pay that cost on the next chat request.

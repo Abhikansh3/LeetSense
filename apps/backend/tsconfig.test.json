@@ -1,0 +1,11 @@
+{
+  // Type-checks the files that are deliberately kept out of the build: the
+  // test suite and the benchmark harness. `tsconfig.json` stays scoped to
+  // `src` so `dist/` only ever contains shipping code.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "bench/**/*.ts", "vitest.config.ts"]
+}
