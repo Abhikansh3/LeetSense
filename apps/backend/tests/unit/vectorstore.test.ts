@@ -1,6 +1,56 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { collection, getOrCreateCollection, setRetrievedDocuments } from "../mocks/chromadb.js";
 import { deleteUserChunks, queryChunks, upsertChunks } from "../../src/services/rag/vectorstore.js";
+
+/**
+ * Which client the module builds is decided once at import from the
+ * environment, so each case needs a fresh module graph.
+ */
+async function clientFor(envOverrides: Record<string, string>) {
+  const original = { ...process.env };
+  Object.assign(process.env, envOverrides);
+  vi.resetModules();
+  try {
+    const chroma = await import("../mocks/chromadb.js");
+    chroma.resetChroma();
+    await import("../../src/services/rag/vectorstore.js");
+    return chroma.constructed.at(-1)!;
+  } finally {
+    process.env = original;
+  }
+}
+
+describe("vector store client selection", () => {
+  afterEach(() => vi.resetModules());
+
+  it("talks to a self-hosted server when no cloud key is set", async () => {
+    const client = await clientFor({ CHROMA_API_KEY: "", CHROMA_URL: "http://localhost:8000" });
+
+    expect(client.kind).toBe("local");
+    expect(client.params).toMatchObject({ path: "http://localhost:8000" });
+  });
+
+  /**
+   * CHROMA_API_KEY / TENANT / DATABASE were declared in the environment schema
+   * and documented in .env.example from the start, but nothing read them —
+   * setting them silently did nothing and the client kept talking to
+   * localhost.
+   */
+  it("uses Chroma Cloud when an API key is configured", async () => {
+    const client = await clientFor({
+      CHROMA_API_KEY: "ck-test-key",
+      CHROMA_TENANT: "tenant-id",
+      CHROMA_DATABASE: "leetsense",
+    });
+
+    expect(client.kind).toBe("cloud");
+    expect(client.params).toMatchObject({
+      apiKey: "ck-test-key",
+      tenant: "tenant-id",
+      database: "leetsense",
+    });
+  });
+});
 
 describe("vector store retrieval", () => {
   it("scopes the search to the asking user", async () => {
