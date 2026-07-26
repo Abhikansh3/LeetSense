@@ -1,4 +1,4 @@
-import { ChromaClient, type IEmbeddingFunction } from "chromadb";
+import { ChromaClient, CloudClient, type IEmbeddingFunction } from "chromadb";
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 import { embedText } from "../../lib/gemini.js";
@@ -12,7 +12,20 @@ class GeminiEmbeddingFunction implements IEmbeddingFunction {
   }
 }
 
-const client = new ChromaClient({ path: env.CHROMA_URL });
+/**
+ * Chroma Cloud when an API key is configured, otherwise a self-hosted server
+ * at CHROMA_URL. The cloud credentials were declared in the environment schema
+ * from the start but were never actually read here, so setting them silently
+ * did nothing and the client kept talking to localhost.
+ */
+const client = env.CHROMA_API_KEY
+  ? new CloudClient({
+      apiKey: env.CHROMA_API_KEY,
+      tenant: env.CHROMA_TENANT,
+      database: env.CHROMA_DATABASE,
+    })
+  : new ChromaClient({ path: env.CHROMA_URL });
+
 const embeddingFunction = new GeminiEmbeddingFunction();
 
 async function collection() {

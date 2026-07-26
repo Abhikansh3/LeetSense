@@ -16,12 +16,35 @@ export const collection = {
 export const getOrCreateCollection = vi.fn(async () => collection);
 export const deleteCollection = vi.fn(async () => undefined);
 
+/**
+ * Records how the client was constructed, so the cloud/self-hosted choice is
+ * assertable. Held on globalThis rather than in module scope because the tests
+ * that exercise that choice reset the module registry, which would otherwise
+ * hand the test and the code under test two different arrays.
+ */
+export const constructed: { kind: "local" | "cloud"; params: unknown }[] = ((
+  globalThis as { __chromaConstructed?: { kind: "local" | "cloud"; params: unknown }[] }
+).__chromaConstructed ??= []);
+
 export class ChromaClient {
   getOrCreateCollection = getOrCreateCollection;
   deleteCollection = deleteCollection;
+
+  constructor(params?: unknown) {
+    constructed.push({ kind: "local", params });
+  }
+}
+
+export class CloudClient extends ChromaClient {
+  constructor(params?: unknown) {
+    super();
+    constructed.pop(); // the super() call recorded a local client
+    constructed.push({ kind: "cloud", params });
+  }
 }
 
 export function resetChroma(): void {
+  constructed.length = 0;
   collection.upsert.mockReset().mockResolvedValue(undefined);
   collection.query.mockReset().mockResolvedValue({ documents: [[]] });
   collection.delete.mockReset().mockResolvedValue(undefined);
