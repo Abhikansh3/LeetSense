@@ -12,8 +12,11 @@ process.env.NODE_ENV = "test";
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/leetsense_test?schema=public";
 process.env.JWT_ACCESS_SECRET = "test-access-secret-not-used-in-production";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret-not-used-in-production";
-// 32 bytes of hex, as ENCRYPTION_KEY's schema requires.
-process.env.ENCRYPTION_KEY = "6f1c2a9d4b8e07f35a1d6c9b2e4f8a07c3d5b9e1f7a2c4d6b8e0f2a4c6d8b9e1";
+// 32 bytes of hex, as ENCRYPTION_KEY's schema requires. Deliberately a
+// repeating pattern rather than random-looking: a real-looking key here is
+// indistinguishable from a leaked one to a secret scanner, and teaches
+// everyone to wave the alert through.
+process.env.ENCRYPTION_KEY = "0123456789abcdef".repeat(4);
 process.env.CORS_ORIGIN = "http://localhost:3001";
 process.env.REDIS_URL = "redis://localhost:6379";
 process.env.CACHE_ENABLED = "true";
