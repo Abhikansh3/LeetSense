@@ -1,0 +1,21 @@
+# Keeps `vercel deploy` from uploading the whole workspace. Vercel installs
+# dependencies and builds on its own machine, so shipping local node_modules
+# is pure waste — and at ~3.7GB it trips the 100MB per-file limit on the
+# Prisma engine binaries before it even finishes.
+node_modules
+**/node_modules
+
+# Build output, regenerated remotely.
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+coverage
+**/coverage
+
+.git
+*.log
+.env
+.env.*
