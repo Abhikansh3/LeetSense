@@ -74,6 +74,13 @@ docker compose up -d          # infra + api + worker + web
 docker compose --profile monitoring up -d   # + prometheus & grafana
 ```
 
+### Deploying
+
+Frontend on Vercel, API + sync worker + ChromaDB on Fly.io. The configs are
+checked in (`fly/`, `apps/frontend/vercel.json`); see **[DEPLOYMENT.md](DEPLOYMENT.md)**
+for the step-by-step, including the cross-domain cookie setting that login
+depends on.
+
 ## API overview
 
 | Method | Route | Purpose |

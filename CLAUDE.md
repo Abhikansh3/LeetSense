@@ -22,11 +22,23 @@ pnpm db:push                                # apply schema
 pnpm dev                                    # all apps (worker runs in-process)
 pnpm build
 pnpm lint
+pnpm typecheck
+pnpm test                                   # 193 tests, no services needed
+pnpm test:coverage
 pnpm --filter @leetsense/backend reindex    # rebuild the vector store
+pnpm --filter @leetsense/backend bench      # cache before/after latency
 ```
 
-Verify with `pnpm build` and `pnpm lint` before considering work complete.
-Type-check individually with `npx tsc --noEmit` in each app.
+Verify with `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build` before
+considering work complete. CI runs exactly those four, then builds both Docker
+images (`.github/workflows/ci.yml`).
+
+Backend tests live in `apps/backend/tests`. Everything that opens a socket is
+mocked at the package boundary in `tests/setup.ts` — Prisma, ioredis, Chroma,
+Gemini, BullMQ and the LeetCode fetcher — so the suite needs no running
+services. Redis is a real in-memory implementation rather than a stub, so cache
+behaviour is exercised through the actual key layout. When adding a module that
+reaches the network, mock it there rather than in individual test files.
 
 ## Two data sources — only one is authoritative
 
@@ -70,22 +82,20 @@ and must **never** be returned by any endpoint — `/auth/me` exposes only a
 
 Ordered roughly by value:
 
-1. **No tests.** Nothing anywhere. The highest-value targets are the auth flow,
-   the public-vs-authenticated sync fallback in `sync.service.ts`, and RAG
-   retrieval.
-2. **No CI.** There is Docker but no GitHub Actions. Lint + typecheck + build
-   on every PR would be short work.
-3. **No retry/backoff or timeouts on outbound calls.** Neither the LeetCode
+1. **The frontend has no tests.** The backend is at ~91% of statements, but
+   nothing covers `apps/frontend` — no component or route tests, and no
+   end-to-end run of register → link handle → sync → chat.
+2. **No retry/backoff or timeouts on outbound calls.** Neither the LeetCode
    fetchers nor the Gemini client have them. An exhausted Gemini embedding
    quota currently makes `POST /api/chat` hang rather than fail fast, and the
    LeetCode calls risk IP blocking. BullMQ's retry config is not doing real
    work here yet.
-4. **RAG grounding is undocumented.** The README says "grounded via RAG" but
+3. **RAG grounding is undocumented.** The README says "grounded via RAG" but
    not the chunking strategy, embedding model, top-k, or — most importantly —
    what happens when retrieval returns nothing. It currently degrades to an
    ungrounded answer; `queryChunks` swallows vector-store failures by design so
    a damaged index cannot 500 the endpoint. Rebuild with the `reindex` script.
-5. **Dashboard redesign is unresolved and was abandoned.** Two directions were
+4. **Dashboard redesign is unresolved and was abandoned.** Two directions were
    built and rejected — a restrained Linear/Vercel-style token system ("too
    simple"), then a "terminal instrument" look with framed panels, grid
    backdrops, zero-padded figures and segmented meters ("worse"). Both were

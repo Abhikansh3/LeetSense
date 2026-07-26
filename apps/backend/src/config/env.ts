@@ -22,6 +22,13 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL: z.string().default("7d"),
+  // SameSite policy for the refresh cookie. Left unset it follows the
+  // deployment shape: "lax" in development, where the browser treats
+  // localhost:3001 → localhost:3000 as same-site, and "none" in production,
+  // where the frontend (Vercel) and API (Fly) are different sites and a Lax
+  // cookie would simply never be sent. Set explicitly when both are served
+  // from one domain and the stricter policy is wanted.
+  COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
 
   REDIS_URL: z.string().default("redis://localhost:6379"),
 

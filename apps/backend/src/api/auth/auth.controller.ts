@@ -5,10 +5,21 @@ import * as authService from "./auth.service.js";
 
 const REFRESH_COOKIE = "refreshToken";
 
+const isProduction = env.NODE_ENV === "production";
+
+/**
+ * In the deployed topology the frontend and the API are on different sites
+ * (vercel.app and fly.dev), which makes every refresh call cross-site. A
+ * SameSite=Lax cookie is not sent on those, so the session would silently fail
+ * to survive a page load. SameSite=None is what a cross-site cookie needs, and
+ * the browser only accepts it alongside Secure — which production already sets.
+ */
+const sameSite: CookieOptions["sameSite"] = env.COOKIE_SAMESITE ?? (isProduction ? "none" : "lax");
+
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: isProduction || sameSite === "none",
+  sameSite,
   path: "/api/auth",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
