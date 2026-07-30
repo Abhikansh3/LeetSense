@@ -81,9 +81,9 @@ function categoryTable(rows: CategoryStats[], overall: CategoryStats): string {
 }
 
 /** Detail block shared by the review and failure sections. */
-function detail(r: RunResult): string {
+function detail(r: RunResult, k: number): string {
   const retrieval = r.retrieval
-    ? `\n- **Retrieval:** recall@N ${pct(r.retrieval.recallAtK)} — expected \`${r.retrieval.expected.join("`, `")}\`, ` +
+    ? `\n- **Retrieval:** recall@${k} ${pct(r.retrieval.recallAtK)} — expected \`${r.retrieval.expected.join("`, `")}\`, ` +
       `got \`${r.retrieval.retrieved.join("`, `") || "(none mapped)"}\``
     : "";
 
@@ -155,14 +155,14 @@ export function renderReport(report: Report): string {
   if (report.lowConfidence.length === 0) {
     out.push("None.", "");
   } else {
-    for (const r of report.lowConfidence) out.push(detail(r), "");
+    for (const r of report.lowConfidence) out.push(detail(r, report.recallK), "");
   }
 
   out.push("## Wrong answers", "");
   if (report.wrong.length === 0) {
     out.push("None.", "");
   } else {
-    for (const r of report.wrong) out.push(detail(r), "");
+    for (const r of report.wrong) out.push(detail(r, report.recallK), "");
   }
 
   return out.join("\n");
