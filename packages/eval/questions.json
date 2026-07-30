@@ -1,0 +1,20 @@
+[
+  {
+    "id": "q001",
+    "category": "factual",
+    "question": "How many problems have I solved in total?",
+    "ground_truth": "47",
+    "tolerance": "exact",
+    "expected_chunk_ids": ["profile"],
+    "notes": "TEMPLATE — replace with your own value. Computed from: select \"totalSolved\" from \"ProfileSnapshot\" where \"userId\" = $1 order by \"capturedAt\" desc limit 1"
+  },
+  {
+    "id": "q002",
+    "category": "abstention",
+    "question": "What was my LeetCode contest rating in March 2023?",
+    "ground_truth": "ABSTAIN",
+    "tolerance": "abstain",
+    "expected_chunk_ids": null,
+    "notes": "TEMPLATE — contest history is never synced, so no chunk can ground this. The assistant must refuse rather than invent a rating."
+  }
+]
