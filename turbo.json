@@ -27,6 +27,10 @@
     },
     "db:generate": {
       "cache": false
+    },
+    "eval": {
+      "cache": false,
+      "persistent": false
     }
   }
 }
