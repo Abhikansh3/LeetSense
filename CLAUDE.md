@@ -23,7 +23,7 @@ pnpm dev                                    # all apps (worker runs in-process)
 pnpm build
 pnpm lint
 pnpm typecheck
-pnpm test                                   # 193 tests, no services needed
+pnpm test                                   # 195 tests, no services needed
 pnpm test:coverage
 pnpm --filter @leetsense/backend reindex    # rebuild the vector store
 pnpm --filter @leetsense/backend bench      # cache before/after latency
